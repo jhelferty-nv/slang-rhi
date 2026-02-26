@@ -350,6 +350,15 @@ Result RecordDevice::createInputLayout(const InputLayoutDesc& desc, IInputLayout
 {
     RHI_RECORD_CALL("IDevice::createInputLayout");
     RHI_RECORD_INPUT_DESC(desc);
+    for (uint32_t i = 0; i < desc.inputElementCount; i++)
+    {
+        slangRecord_recordString(SLANG_RECORD_FLAG_INPUT, desc.inputElements[i].semanticName);
+        RHI_RECORD_INPUT_UINT32(desc.inputElements[i].semanticIndex);
+        RHI_RECORD_INPUT_POD(desc.inputElements[i].format);
+        RHI_RECORD_INPUT_UINT32(desc.inputElements[i].offset);
+        RHI_RECORD_INPUT_UINT32(desc.inputElements[i].bufferSlotIndex);
+    }
+    RHI_RECORD_INPUT_POD_ARRAY(desc.vertexStreams, desc.vertexStreamCount);
 
     auto result = baseObject->createInputLayout(desc, outLayout);
     wrapOutput<RecordInputLayout>(outLayout);
@@ -433,6 +442,10 @@ Result RecordDevice::createShaderProgram(
 {
     RHI_RECORD_CALL("IDevice::createShaderProgram");
     RHI_RECORD_INPUT_DESC(desc);
+    RHI_RECORD_OBJECT_INPUT(desc.slangGlobalScope);
+    RHI_RECORD_INPUT_UINT32(desc.slangEntryPointCount);
+    for (uint32_t i = 0; i < desc.slangEntryPointCount; i++)
+        RHI_RECORD_OBJECT_INPUT(desc.slangEntryPoints[i]);
 
     auto result = baseObject->createShaderProgram(desc, outProgram, outDiagnostics);
     wrapOutput<RecordShaderProgram>(outProgram);
@@ -446,6 +459,11 @@ Result RecordDevice::createRenderPipeline(
 {
     RHI_RECORD_CALL("IDevice::createRenderPipeline");
     RHI_RECORD_INPUT_DESC(desc);
+    RHI_RECORD_OBJECT_INPUT(desc.program);
+    RHI_RECORD_OBJECT_INPUT(desc.inputLayout);
+    RHI_RECORD_INPUT_POD_ARRAY(desc.targets, desc.targetCount);
+    if (desc.label)
+        slangRecord_recordString(SLANG_RECORD_FLAG_INPUT, desc.label);
 
     RenderPipelineDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
@@ -477,6 +495,17 @@ Result RecordDevice::createRayTracingPipeline(
 {
     RHI_RECORD_CALL("IDevice::createRayTracingPipeline");
     RHI_RECORD_INPUT_DESC(desc);
+    RHI_RECORD_OBJECT_INPUT(desc.program);
+    RHI_RECORD_INPUT_UINT32(desc.hitGroupCount);
+    for (uint32_t i = 0; i < desc.hitGroupCount; i++)
+    {
+        slangRecord_recordString(SLANG_RECORD_FLAG_INPUT, desc.hitGroups[i].hitGroupName);
+        slangRecord_recordString(SLANG_RECORD_FLAG_INPUT, desc.hitGroups[i].closestHitEntryPoint);
+        slangRecord_recordString(SLANG_RECORD_FLAG_INPUT, desc.hitGroups[i].anyHitEntryPoint);
+        slangRecord_recordString(SLANG_RECORD_FLAG_INPUT, desc.hitGroups[i].intersectionEntryPoint);
+    }
+    if (desc.label)
+        slangRecord_recordString(SLANG_RECORD_FLAG_INPUT, desc.label);
 
     RayTracingPipelineDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
@@ -625,7 +654,18 @@ Result RecordDevice::convertCooperativeVectorMatrix(
     const CooperativeVectorMatrixDesc* srcDescs,
     uint32_t matrixCount)
 {
-    return baseObject->convertCooperativeVectorMatrix(
+    RHI_RECORD_CALL("IDevice::convertCooperativeVectorMatrix");
+    RHI_RECORD_INPUT_POD(dstBufferSize);
+    RHI_RECORD_INPUT_POD(srcBufferSize);
+    RHI_RECORD_INPUT_UINT32(matrixCount);
+    RHI_RECORD_INPUT_BLOB(srcBuffer, srcBufferSize);
+    for (uint32_t i = 0; i < matrixCount; i++)
+    {
+        RHI_RECORD_INPUT_POD(dstDescs[i]);
+        RHI_RECORD_INPUT_POD(srcDescs[i]);
+    }
+
+    auto result = baseObject->convertCooperativeVectorMatrix(
         dstBuffer,
         dstBufferSize,
         dstDescs,
@@ -633,14 +673,30 @@ Result RecordDevice::convertCooperativeVectorMatrix(
         srcBufferSize,
         srcDescs,
         matrixCount);
+    RHI_RECORD_RETURN(result);
 }
 
 Result RecordDevice::createShaderTable(const ShaderTableDesc& desc, IShaderTable** outTable)
 {
     RHI_RECORD_CALL("IDevice::createShaderTable");
     RHI_RECORD_INPUT_DESC(desc);
+    RHI_RECORD_OBJECT_INPUT(desc.program);
 
-    auto result = baseObject->createShaderTable(desc, outTable);
+    RHI_RECORD_INPUT_STRING_ARRAY(desc.rayGenShaderEntryPointNames, desc.rayGenShaderCount);
+    RHI_RECORD_INPUT_POD_ARRAY(desc.rayGenShaderRecordOverwrites, desc.rayGenShaderCount);
+
+    RHI_RECORD_INPUT_STRING_ARRAY(desc.missShaderEntryPointNames, desc.missShaderCount);
+    RHI_RECORD_INPUT_POD_ARRAY(desc.missShaderRecordOverwrites, desc.missShaderCount);
+
+    RHI_RECORD_INPUT_STRING_ARRAY(desc.hitGroupNames, desc.hitGroupCount);
+    RHI_RECORD_INPUT_POD_ARRAY(desc.hitGroupRecordOverwrites, desc.hitGroupCount);
+
+    RHI_RECORD_INPUT_STRING_ARRAY(desc.callableShaderEntryPointNames, desc.callableShaderCount);
+    RHI_RECORD_INPUT_POD_ARRAY(desc.callableShaderRecordOverwrites, desc.callableShaderCount);
+
+    ShaderTableDesc innerDesc = desc;
+    innerDesc.program = getInnerObj(desc.program);
+    auto result = baseObject->createShaderTable(innerDesc, outTable);
     wrapOutput<RecordShaderTable>(outTable);
     RHI_RECORD_OBJECT_OUTPUT(outTable);
     RHI_RECORD_RETURN(result);

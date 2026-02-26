@@ -17,7 +17,29 @@ namespace rhi::record {
 IRenderPassEncoder* RecordCommandEncoder::beginRenderPass(const RenderPassDesc& desc)
 {
     RHI_RECORD_CALL("ICommandEncoder::beginRenderPass");
-    RHI_RECORD_INPUT_POD(desc);
+    RHI_RECORD_INPUT_UINT32(desc.colorAttachmentCount);
+    for (uint32_t i = 0; i < desc.colorAttachmentCount; i++)
+    {
+        RHI_RECORD_OBJECT_INPUT(desc.colorAttachments[i].view);
+        RHI_RECORD_OBJECT_INPUT(desc.colorAttachments[i].resolveTarget);
+        RHI_RECORD_INPUT_POD(desc.colorAttachments[i].loadOp);
+        RHI_RECORD_INPUT_POD(desc.colorAttachments[i].storeOp);
+        RHI_RECORD_INPUT_POD(desc.colorAttachments[i].clearValue);
+    }
+    bool hasDepth = desc.depthStencilAttachment != nullptr;
+    RHI_RECORD_INPUT_BOOL(hasDepth);
+    if (hasDepth)
+    {
+        RHI_RECORD_OBJECT_INPUT(desc.depthStencilAttachment->view);
+        RHI_RECORD_INPUT_POD(desc.depthStencilAttachment->depthLoadOp);
+        RHI_RECORD_INPUT_POD(desc.depthStencilAttachment->depthStoreOp);
+        RHI_RECORD_INPUT_POD(desc.depthStencilAttachment->depthClearValue);
+        RHI_RECORD_INPUT_BOOL(desc.depthStencilAttachment->depthReadOnly);
+        RHI_RECORD_INPUT_POD(desc.depthStencilAttachment->stencilLoadOp);
+        RHI_RECORD_INPUT_POD(desc.depthStencilAttachment->stencilStoreOp);
+        RHI_RECORD_INPUT_POD(desc.depthStencilAttachment->stencilClearValue);
+        RHI_RECORD_INPUT_BOOL(desc.depthStencilAttachment->stencilReadOnly);
+    }
 
     // Unwrap texture views in the render pass desc
     RenderPassDesc innerDesc = desc;
@@ -285,6 +307,21 @@ void RecordCommandEncoder::deserializeAccelerationStructure(IAccelerationStructu
 
 void RecordCommandEncoder::executeClusterOperation(const ClusterOperationDesc& desc)
 {
+    RHI_RECORD_CALL("ICommandEncoder::executeClusterOperation");
+    RHI_RECORD_INPUT_POD(desc.params);
+    RHI_RECORD_OBJECT_INPUT(desc.argCountBuffer.buffer);
+    RHI_RECORD_INPUT_POD(desc.argCountBuffer.offset);
+    RHI_RECORD_OBJECT_INPUT(desc.argsBuffer.buffer);
+    RHI_RECORD_INPUT_POD(desc.argsBuffer.offset);
+    RHI_RECORD_OBJECT_INPUT(desc.scratchBuffer.buffer);
+    RHI_RECORD_INPUT_POD(desc.scratchBuffer.offset);
+    RHI_RECORD_OBJECT_INPUT(desc.addressesBuffer.buffer);
+    RHI_RECORD_INPUT_POD(desc.addressesBuffer.offset);
+    RHI_RECORD_OBJECT_INPUT(desc.resultBuffer.buffer);
+    RHI_RECORD_INPUT_POD(desc.resultBuffer.offset);
+    RHI_RECORD_OBJECT_INPUT(desc.sizesBuffer.buffer);
+    RHI_RECORD_INPUT_POD(desc.sizesBuffer.offset);
+
     ClusterOperationDesc innerDesc = desc;
     innerDesc.argCountBuffer = getInnerBufferOffsetPair(desc.argCountBuffer);
     innerDesc.argsBuffer = getInnerBufferOffsetPair(desc.argsBuffer);
@@ -297,6 +334,15 @@ void RecordCommandEncoder::executeClusterOperation(const ClusterOperationDesc& d
 
 void RecordCommandEncoder::convertCooperativeVectorMatrix(IBuffer* dstBuffer, const CooperativeVectorMatrixDesc* dstDescs, IBuffer* srcBuffer, const CooperativeVectorMatrixDesc* srcDescs, uint32_t matrixCount)
 {
+    RHI_RECORD_CALL("ICommandEncoder::convertCooperativeVectorMatrix");
+    RHI_RECORD_OBJECT_INPUT(dstBuffer);
+    RHI_RECORD_OBJECT_INPUT(srcBuffer);
+    RHI_RECORD_INPUT_UINT32(matrixCount);
+    for (uint32_t i = 0; i < matrixCount; i++)
+    {
+        RHI_RECORD_INPUT_POD(dstDescs[i]);
+        RHI_RECORD_INPUT_POD(srcDescs[i]);
+    }
     baseObject->convertCooperativeVectorMatrix(getInnerObj(dstBuffer), dstDescs, getInnerObj(srcBuffer), srcDescs, matrixCount);
 }
 

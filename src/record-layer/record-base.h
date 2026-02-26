@@ -37,6 +37,25 @@ using Slang::ComPtr;
 #define RHI_RECORD_INPUT_BLOB(data, size) \
     slangRecord_recordBlob(SLANG_RECORD_FLAG_INPUT, data, size)
 
+/// Record a counted array of POD elements.
+#define RHI_RECORD_INPUT_POD_ARRAY(arr, count)                                 \
+    do {                                                                       \
+        uint32_t _n = static_cast<uint32_t>(count);                            \
+        RHI_RECORD_INPUT_UINT32(_n);                                           \
+        if ((arr) && _n > 0)                                                   \
+            slangRecord_recordPOD(SLANG_RECORD_FLAG_INPUT, (arr),              \
+                static_cast<uint32_t>(sizeof((arr)[0]) * _n));                 \
+    } while (0)
+
+/// Record a counted array of C strings.
+#define RHI_RECORD_INPUT_STRING_ARRAY(arr, count)                              \
+    do {                                                                       \
+        uint32_t _n = static_cast<uint32_t>(count);                            \
+        RHI_RECORD_INPUT_UINT32(_n);                                           \
+        for (uint32_t _i = 0; _i < _n; _i++)                                  \
+            slangRecord_recordString(SLANG_RECORD_FLAG_INPUT, (arr)[_i]);      \
+    } while (0)
+
 /// Record an output POD value.
 #define RHI_RECORD_OUTPUT(arg) \
     slangRecord_recordPOD(SLANG_RECORD_FLAG_OUTPUT, &(arg), static_cast<uint32_t>(sizeof(arg)))

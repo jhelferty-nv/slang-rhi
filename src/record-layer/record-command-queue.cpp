@@ -50,7 +50,23 @@ Result RecordCommandQueue::submit(const SubmitDesc& desc)
         innerSignalFences.push_back(getInnerObj(desc.signalFences[i]));
     innerDesc.signalFences = innerSignalFences.data();
 
-    RHI_RECORD_INPUT_POD(desc);
+    RHI_RECORD_INPUT_UINT32(desc.commandBufferCount);
+    for (uint32_t i = 0; i < desc.commandBufferCount; i++)
+        RHI_RECORD_OBJECT_INPUT(desc.commandBuffers[i]);
+    RHI_RECORD_INPUT_UINT32(desc.waitFenceCount);
+    for (uint32_t i = 0; i < desc.waitFenceCount; i++)
+    {
+        RHI_RECORD_OBJECT_INPUT(desc.waitFences[i]);
+        if (desc.waitFenceValues)
+            RHI_RECORD_INPUT_POD(desc.waitFenceValues[i]);
+    }
+    RHI_RECORD_INPUT_UINT32(desc.signalFenceCount);
+    for (uint32_t i = 0; i < desc.signalFenceCount; i++)
+    {
+        RHI_RECORD_OBJECT_INPUT(desc.signalFences[i]);
+        if (desc.signalFenceValues)
+            RHI_RECORD_INPUT_POD(desc.signalFenceValues[i]);
+    }
     auto result = baseObject->submit(innerDesc);
     RHI_RECORD_RETURN(result);
 }

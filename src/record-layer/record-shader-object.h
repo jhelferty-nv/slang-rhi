@@ -58,7 +58,14 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL reserveData(const ShaderOffset& offset, size_t size, void** outData) override
     {
-        return baseObject->reserveData(offset, size, outData);
+        // Forward to inner object. The caller will write data through
+        // the returned pointer; we can't intercept those writes.
+        // If replay needs this data, callers should use setData() instead.
+        RHI_RECORD_CALL("IShaderObject::reserveData");
+        RHI_RECORD_INPUT_POD(offset);
+        RHI_RECORD_INPUT_POD(size);
+        auto result = baseObject->reserveData(offset, size, outData);
+        RHI_RECORD_RETURN(result);
     }
 
     virtual SLANG_NO_THROW Result SLANG_MCALL getObject(const ShaderOffset& offset, IShaderObject** object) override
@@ -125,7 +132,13 @@ public:
 
     virtual SLANG_NO_THROW Result SLANG_MCALL setSpecializationArgs(const ShaderOffset& offset, const slang::SpecializationArg* args, uint32_t count) override
     {
-        return baseObject->setSpecializationArgs(offset, args, count);
+        RHI_RECORD_CALL("IShaderObject::setSpecializationArgs");
+        RHI_RECORD_INPUT_POD(offset);
+        RHI_RECORD_INPUT_UINT32(count);
+        for (uint32_t i = 0; i < count; i++)
+            RHI_RECORD_INPUT_POD(args[i]);
+        auto result = baseObject->setSpecializationArgs(offset, args, count);
+        RHI_RECORD_RETURN(result);
     }
 
     virtual SLANG_NO_THROW const void* SLANG_MCALL getRawData() override
