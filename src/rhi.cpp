@@ -1,6 +1,7 @@
 #include <slang-rhi.h>
 
 #include "debug-layer/debug-device.h"
+#include "record-layer/record-device.h"
 #include "rhi-shared.h"
 
 #include "core/common.h"
@@ -373,15 +374,26 @@ Result RHI::createDevice(const DeviceDesc& desc, IDevice** outDevice)
     auto resultCode = _createDevice(&desc, innerDevice.writeRef());
     if (SLANG_FAILED(resultCode))
         return resultCode;
-    if (!desc.enableValidation)
+    if (desc.enableValidation)
     {
-        returnComPtr(outDevice, innerDevice);
-        return resultCode;
+        IDebugCallback* debugCallback = checked_cast<Device*>(innerDevice.get())->m_debugCallback;
+        RefPtr<debug::DebugDevice> debugDevice =
+            new debug::DebugDevice(innerDevice->getInfo().deviceType, debugCallback);
+        debugDevice->baseObject = innerDevice;
+        innerDevice = debugDevice;
     }
-    IDebugCallback* debugCallback = checked_cast<Device*>(innerDevice.get())->m_debugCallback;
-    RefPtr<debug::DebugDevice> debugDevice = new debug::DebugDevice(innerDevice->getInfo().deviceType, debugCallback);
-    debugDevice->baseObject = innerDevice;
-    returnComPtr(outDevice, debugDevice);
+
+    // Wrap in recording layer if slang's replay system is active.
+    // The recording proxy sits outermost so it captures the user's view of the API.
+    if (slangRecord_isActive())
+    {
+        RefPtr<record::RecordDevice> recordDevice = new record::RecordDevice();
+        recordDevice->baseObject = innerDevice;
+        recordDevice->registerSelf();
+        innerDevice = recordDevice;
+    }
+
+    returnComPtr(outDevice, innerDevice);
     return resultCode;
 }
 

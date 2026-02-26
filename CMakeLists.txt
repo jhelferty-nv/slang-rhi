@@ -353,6 +353,7 @@ if(EXISTS ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
     target_include_directories(slang-rhi PUBLIC ${SLANG_RHI_SLANG_INCLUDE_DIR}/../prelude)
 endif()
 
+
 # Fetch & setup DirectXShaderCompiler
 if(SLANG_RHI_ENABLE_D3D12 AND (CMAKE_SYSTEM_NAME STREQUAL "Windows"))
     message(STATUS "Fetching DirectXShaderCompiler ...")
@@ -618,6 +619,9 @@ target_sources(slang-rhi PRIVATE
     src/debug-layer/debug-query.cpp
     src/debug-layer/debug-shader-object.cpp
     src/debug-layer/debug-surface.cpp
+    src/record-layer/record-command-encoder.cpp
+    src/record-layer/record-command-queue.cpp
+    src/record-layer/record-device.cpp
 )
 
 if(APPLE)
