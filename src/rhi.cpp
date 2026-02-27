@@ -383,13 +383,23 @@ Result RHI::createDevice(const DeviceDesc& desc, IDevice** outDevice)
         innerDevice = debugDevice;
     }
 
-    // Wrap in recording layer if slang's replay system is active.
+    // Wrap in recording layer if slang's replay system is recording (not replaying).
     // The recording proxy sits outermost so it captures the user's view of the API.
-    if (slangRecord_isActive())
+    if (slangRecord_isRecording())
     {
         RefPtr<record::RecordDevice> recordDevice = new record::RecordDevice();
         recordDevice->baseObject = innerDevice;
         recordDevice->registerSelf();
+
+        SlangRecordLock _lock;
+        slangRecord_beginStaticCall("rhi::createDevice");
+        slangRecord_recordPOD(SLANG_RECORD_FLAG_INPUT, &desc, static_cast<uint32_t>(sizeof(desc)));
+        record::recordExtensionChain(desc.next);
+        slangRecord_recordHandle(
+            SLANG_RECORD_FLAG_OUTPUT,
+            static_cast<ISlangUnknown*>(static_cast<IDevice*>(recordDevice)));
+        slangRecord_recordInt32(SLANG_RECORD_FLAG_RETURN_VALUE, resultCode);
+
         innerDevice = recordDevice;
     }
 

@@ -622,6 +622,7 @@ target_sources(slang-rhi PRIVATE
     src/record-layer/record-command-encoder.cpp
     src/record-layer/record-command-queue.cpp
     src/record-layer/record-device.cpp
+    src/replay-layer/rhi-replay.cpp
 )
 
 if(APPLE)
