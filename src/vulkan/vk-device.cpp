@@ -52,6 +52,14 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
     instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
     VkInstance instance;
+    VulkanTrace::ensureInit();
+    if (VulkanTrace::isEnabled())
+    {
+        VulkanTrace::log("instance (minimal path, no applicationInfo)\n");
+        for (uint32_t i = 0; i < instanceCreateInfo.enabledExtensionCount; i++)
+            VulkanTrace::log("  instance extension: %s\n", instanceCreateInfo.ppEnabledExtensionNames[i]);
+        VulkanTrace::flush();
+    }
     SLANG_VK_TRACE_BEFORE("vkCreateInstance(pCreateInfo=%p)", (void*)&instanceCreateInfo);
     SLANG_VK_RETURN_ON_FAIL(api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance));
     SLANG_RHI_DEFERRED({ SLANG_VK_TRACE_BEFORE("vkDestroyInstance(instance=%p)", (void*)instance); api.vkDestroyInstance(instance, nullptr); });
@@ -398,6 +406,22 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             // the layer is known earlier). It might, for example, be absent
             // from the system library search path, and not referenced with an
             // absolute path in VkLayer_khronos_validation.json.
+            VulkanTrace::ensureInit();
+            if (VulkanTrace::isEnabled())
+            {
+                VulkanTrace::log("instance apiVersion=%u.%u.%u\n",
+                    VK_VERSION_MAJOR(applicationInfo.apiVersion),
+                    VK_VERSION_MINOR(applicationInfo.apiVersion),
+                    VK_VERSION_PATCH(applicationInfo.apiVersion));
+                for (uint32_t i = 0; i < instanceCreateInfo.enabledExtensionCount; i++)
+                    VulkanTrace::log("  instance extension: %s\n", instanceCreateInfo.ppEnabledExtensionNames[i]);
+                if (instanceCreateInfo.enabledLayerCount > 0 && instanceCreateInfo.ppEnabledLayerNames)
+                {
+                    for (uint32_t i = 0; i < instanceCreateInfo.enabledLayerCount; i++)
+                        VulkanTrace::log("  instance layer: %s\n", instanceCreateInfo.ppEnabledLayerNames[i]);
+                }
+                VulkanTrace::flush();
+            }
             SLANG_VK_TRACE_BEFORE("vkCreateInstance(pCreateInfo=%p)", (void*)&instanceCreateInfo);
             const auto r = m_api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
             if (r == VK_SUCCESS)
@@ -1264,6 +1288,17 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         deviceCreateInfo.enabledExtensionCount = uint32_t(deviceExtensions.size());
         deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
+        VulkanTrace::ensureInit();
+        if (VulkanTrace::isEnabled())
+        {
+            VulkanTrace::log("device physicalDevice apiVersion=%u.%u.%u\n",
+                VK_VERSION_MAJOR(basicProps.apiVersion),
+                VK_VERSION_MINOR(basicProps.apiVersion),
+                VK_VERSION_PATCH(basicProps.apiVersion));
+            for (const char* ext : deviceExtensions)
+                VulkanTrace::log("  device extension: %s\n", ext);
+            VulkanTrace::flush();
+        }
         SLANG_VK_TRACE_BEFORE("vkCreateDevice(physicalDevice=%p)", (void*)m_api.m_physicalDevice);
         if (m_api.vkCreateDevice(m_api.m_physicalDevice, &deviceCreateInfo, nullptr, &m_device) != VK_SUCCESS)
             return SLANG_FAIL;
