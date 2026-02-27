@@ -1,4 +1,5 @@
 #include "vk-device-queue.h"
+#include "vk-trace.h"
 
 namespace rhi::vk {
 
@@ -13,13 +14,17 @@ void VulkanDeviceQueue::destroy()
     {
         for (int i = 0; i < int(EventType::CountOf); ++i)
         {
+            SLANG_VK_TRACE_BEFORE("vkDestroySemaphore(device=%p) queue", (void*)m_api->m_device);
             m_api->vkDestroySemaphore(m_api->m_device, m_semaphores[i], nullptr);
         }
 
         for (int i = 0; i < m_numCommandBuffers; i++)
         {
+            SLANG_VK_TRACE_BEFORE("vkFreeCommandBuffers(device=%p)", (void*)m_api->m_device);
             m_api->vkFreeCommandBuffers(m_api->m_device, m_commandPools[i], 1, &m_commandBuffers[i]);
+            SLANG_VK_TRACE_BEFORE("vkDestroyFence(device=%p)", (void*)m_api->m_device);
             m_api->vkDestroyFence(m_api->m_device, m_fences[i].fence, nullptr);
+            SLANG_VK_TRACE_BEFORE("vkDestroyCommandPool(device=%p)", (void*)m_api->m_device);
             m_api->vkDestroyCommandPool(m_api->m_device, m_commandPools[i], nullptr);
         }
         m_api = nullptr;
@@ -49,6 +54,7 @@ Result VulkanDeviceQueue::init(const VulkanApi& api, VkQueue queue, int queueInd
 
         poolCreateInfo.queueFamilyIndex = queueIndex;
 
+        SLANG_VK_TRACE_BEFORE("vkCreateCommandPool(device=%p)", (void*)api.m_device);
         api.vkCreateCommandPool(api.m_device, &poolCreateInfo, nullptr, &m_commandPools[i]);
 
         VkCommandBufferAllocateInfo commandInfo = {};
@@ -62,8 +68,10 @@ Result VulkanDeviceQueue::init(const VulkanApi& api, VkQueue queue, int queueInd
         fenceCreateInfo.flags = 0; // VK_FENCE_CREATE_SIGNALED_BIT;
         FenceInfo& fence = m_fences[i];
 
+        SLANG_VK_TRACE_BEFORE("vkAllocateCommandBuffers(device=%p)", (void*)api.m_device);
         api.vkAllocateCommandBuffers(api.m_device, &commandInfo, &m_commandBuffers[i]);
 
+        SLANG_VK_TRACE_BEFORE("vkCreateFence(device=%p)", (void*)api.m_device);
         api.vkCreateFence(api.m_device, &fenceCreateInfo, nullptr, &fence.fence);
         fence.active = false;
         fence.value = 0;
@@ -74,6 +82,7 @@ Result VulkanDeviceQueue::init(const VulkanApi& api, VkQueue queue, int queueInd
 
     for (int i = 0; i < int(EventType::CountOf); ++i)
     {
+        SLANG_VK_TRACE_BEFORE("vkCreateSemaphore(device=%p)", (void*)api.m_device);
         api.vkCreateSemaphore(api.m_device, &semaphoreCreateInfo, nullptr, &m_semaphores[i]);
     }
 
@@ -115,6 +124,7 @@ void VulkanDeviceQueue::flushStepA()
 
     FenceInfo& fence = m_fences[m_commandBufferIndex];
 
+    SLANG_VK_TRACE_BEFORE("vkQueueSubmit(queue=%p)", (void*)m_queue);
     m_api->vkQueueSubmit(m_queue, 1, &submitInfo, fence.fence);
 
     // mark signaled fence value
@@ -137,8 +147,10 @@ void VulkanDeviceQueue::_updateFenceAtIndex(int fenceIndex, bool blocking)
     {
         uint64_t timeout = blocking ? ~uint64_t(0) : 0;
 
+        SLANG_VK_TRACE_BEFORE("vkWaitForFences(device=%p)", (void*)m_api->m_device);
         if (VK_SUCCESS == m_api->vkWaitForFences(m_api->m_device, 1, &fence.fence, VK_TRUE, timeout))
         {
+            SLANG_VK_TRACE_BEFORE("vkResetFences(device=%p)", (void*)m_api->m_device);
             m_api->vkResetFences(m_api->m_device, 1, &fence.fence);
 
             fence.active = false;

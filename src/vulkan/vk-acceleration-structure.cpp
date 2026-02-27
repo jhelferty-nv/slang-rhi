@@ -1,4 +1,5 @@
 #include "vk-acceleration-structure.h"
+#include "vk-trace.h"
 #include "vk-device.h"
 #include "vk-buffer.h"
 #include "vk-utils.h"
@@ -20,6 +21,7 @@ AccelerationStructureImpl::~AccelerationStructureImpl()
             device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle);
         }
 
+        SLANG_VK_TRACE_BEFORE("vkDestroyAccelerationStructureKHR(device=%p)", (void*)device->m_api.m_device);
         device->m_api.vkDestroyAccelerationStructureKHR(device->m_api.m_device, m_vkHandle, nullptr);
     }
 }

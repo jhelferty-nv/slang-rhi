@@ -1,4 +1,5 @@
 #include "vk-surface.h"
+#include "vk-trace.h"
 #include "vk-device.h"
 #include "vk-command.h"
 #include "vk-texture.h"
@@ -23,6 +24,7 @@ SurfaceImpl::~SurfaceImpl()
 
     if (m_surface)
     {
+        SLANG_VK_TRACE_BEFORE("vkDestroySurfaceKHR(instance=%p, surface=%p)", (void*)api.m_instance, (void*)m_surface);
         api.vkDestroySurfaceKHR(api.m_instance, m_surface, nullptr);
     }
 
@@ -47,6 +49,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.hinstance = ::GetModuleHandle(nullptr);
         surfaceCreateInfo.hwnd = (HWND)windowHandle.handleValues[0];
+        SLANG_VK_TRACE_BEFORE("vkCreateWin32SurfaceKHR(instance=%p)", (void*)api.m_instance);
         SLANG_VK_RETURN_ON_FAIL(api.vkCreateWin32SurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface));
         break;
     }
@@ -57,6 +60,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         VkMetalSurfaceCreateInfoEXT surfaceCreateInfo = {};
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
         surfaceCreateInfo.pLayer = (CAMetalLayer*)m_metalLayer;
+        SLANG_VK_TRACE_BEFORE("vkCreateMetalSurfaceEXT(instance=%p)", (void*)api.m_instance);
         SLANG_VK_RETURN_ON_FAIL(api.vkCreateMetalSurfaceEXT(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface));
         break;
     }
@@ -68,6 +72,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         VkAndroidSurfaceCreateInfoKHR surfaceCreateInfo = {};
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_ANDROID_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.window = (ANativeWindow*)windowHandle.handleValues[0];
+        SLANG_VK_TRACE_BEFORE("vkCreateAndroidSurfaceKHR(instance=%p)", (void*)api.m_instance);
         SLANG_VK_RETURN_ON_FAIL(api.vkCreateAndroidSurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface));
         break;
     }
@@ -78,6 +83,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
         surfaceCreateInfo.sType = VK_STRUCTURE_TYPE_XLIB_SURFACE_CREATE_INFO_KHR;
         surfaceCreateInfo.dpy = (Display*)windowHandle.handleValues[0];
         surfaceCreateInfo.window = (Window)windowHandle.handleValues[1];
+        SLANG_VK_TRACE_BEFORE("vkCreateXlibSurfaceKHR(instance=%p)", (void*)api.m_instance);
         SLANG_VK_RETURN_ON_FAIL(api.vkCreateXlibSurfaceKHR(api.m_instance, &surfaceCreateInfo, nullptr, &m_surface));
         break;
     }
@@ -89,6 +95,7 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     }
 
     VkBool32 supported = false;
+    SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice=%p, surface=%p)", (void*)api.m_physicalDevice, (void*)m_surface);
     api.vkGetPhysicalDeviceSurfaceSupportKHR(api.m_physicalDevice, m_device->m_queueFamilyIndex, m_surface, &supported);
     if (!supported)
     {
@@ -96,8 +103,10 @@ Result SurfaceImpl::init(DeviceImpl* device, WindowHandle windowHandle)
     }
 
     uint32_t formatCount = 0;
+    SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice=%p, surface=%p, pSurfaceFormatCount=%p)", (void*)api.m_physicalDevice, (void*)m_surface, (void*)&formatCount);
     api.vkGetPhysicalDeviceSurfaceFormatsKHR(api.m_physicalDevice, m_surface, &formatCount, nullptr);
     std::vector<VkSurfaceFormatKHR> surfaceFormats(formatCount);
+    SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice=%p, surface=%p, pSurfaceFormats=%p)", (void*)api.m_physicalDevice, (void*)m_surface, (void*)surfaceFormats.data());
     api.vkGetPhysicalDeviceSurfaceFormatsKHR(api.m_physicalDevice, m_surface, &formatCount, surfaceFormats.data());
 
     Format preferredFormat = Format::Undefined;
@@ -135,6 +144,7 @@ Result SurfaceImpl::createSwapchain()
     {
         VkSurfaceCapabilitiesKHR surfaceCaps;
 
+        SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice=%p, surface=%p)", (void*)api.m_physicalDevice, (void*)m_surface);
         SLANG_VK_RETURN_ON_FAIL(
             api.vkGetPhysicalDeviceSurfaceCapabilitiesKHR(api.m_physicalDevice, m_surface, &surfaceCaps)
         );
@@ -142,8 +152,10 @@ Result SurfaceImpl::createSwapchain()
 
     // Query available present modes.
     uint32_t presentModeCount = 0;
+    SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice=%p, surface=%p, pPresentModeCount=%p)", (void*)api.m_physicalDevice, (void*)m_surface, (void*)&presentModeCount);
     api.vkGetPhysicalDeviceSurfacePresentModesKHR(api.m_physicalDevice, m_surface, &presentModeCount, nullptr);
     std::vector<VkPresentModeKHR> presentModes(presentModeCount);
+    SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice=%p, surface=%p, pPresentModes=%p)", (void*)api.m_physicalDevice, (void*)m_surface, (void*)presentModes.data());
     api.vkGetPhysicalDeviceSurfacePresentModesKHR(
         api.m_physicalDevice,
         m_surface,
@@ -198,11 +210,14 @@ Result SurfaceImpl::createSwapchain()
     swapchainDesc.clipped = VK_TRUE;
     swapchainDesc.oldSwapchain = oldSwapchain;
 
+    SLANG_VK_TRACE_BEFORE("vkCreateSwapchainKHR(device=%p)", (void*)api.m_device);
     SLANG_VK_RETURN_ON_FAIL(api.vkCreateSwapchainKHR(api.m_device, &swapchainDesc, nullptr, &m_swapchain));
 
     uint32_t swapchainImageCount = 0;
+    SLANG_VK_TRACE_BEFORE("vkGetSwapchainImagesKHR(device=%p, swapchain=%p, pSwapchainImageCount=%p)", (void*)api.m_device, (void*)m_swapchain, (void*)&swapchainImageCount);
     api.vkGetSwapchainImagesKHR(api.m_device, m_swapchain, &swapchainImageCount, nullptr);
     std::vector<VkImage> swapchainImages(swapchainImageCount);
+    SLANG_VK_TRACE_BEFORE("vkGetSwapchainImagesKHR(device=%p, swapchain=%p, pSwapchainImages=%p)", (void*)api.m_device, (void*)m_swapchain, (void*)swapchainImages.data());
     api.vkGetSwapchainImagesKHR(api.m_device, m_swapchain, &swapchainImageCount, swapchainImages.data());
 
     for (uint32_t i = 0; i < swapchainImageCount; i++)
@@ -233,15 +248,18 @@ Result SurfaceImpl::createSwapchain()
         {
             VkFenceCreateInfo createInfo = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
             createInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+            SLANG_VK_TRACE_BEFORE("vkCreateFence(device=%p)", (void*)api.m_device);
             SLANG_VK_RETURN_ON_FAIL(api.vkCreateFence(api.m_device, &createInfo, nullptr, &frameData.fence));
         }
 
         // Create semaphores.
         {
             VkSemaphoreCreateInfo createInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
+            SLANG_VK_TRACE_BEFORE("vkCreateSemaphore(device=%p) imageAvailable", (void*)api.m_device);
             SLANG_VK_RETURN_ON_FAIL(
                 api.vkCreateSemaphore(api.m_device, &createInfo, nullptr, &frameData.imageAvailableSemaphore)
             );
+            SLANG_VK_TRACE_BEFORE("vkCreateSemaphore(device=%p) renderFinished", (void*)api.m_device);
             SLANG_VK_RETURN_ON_FAIL(
                 api.vkCreateSemaphore(api.m_device, &createInfo, nullptr, &frameData.renderFinishedSemaphore)
             );
@@ -256,26 +274,31 @@ Result SurfaceImpl::createSwapchain()
 void SurfaceImpl::destroySwapchain()
 {
     auto& api = m_device->m_api;
+    SLANG_VK_TRACE_BEFORE("vkQueueWaitIdle(queue=%p)", (void*)m_device->m_queue->m_queue);
     api.vkQueueWaitIdle(m_device->m_queue->m_queue);
     m_textures.clear();
     for (FrameData& frameData : m_frameData)
     {
         if (frameData.fence != VK_NULL_HANDLE)
         {
+            SLANG_VK_TRACE_BEFORE("vkDestroyFence(device=%p, fence=%p)", (void*)api.m_device, (void*)frameData.fence);
             api.vkDestroyFence(api.m_device, frameData.fence, nullptr);
         }
         if (frameData.imageAvailableSemaphore != VK_NULL_HANDLE)
         {
+            SLANG_VK_TRACE_BEFORE("vkDestroySemaphore(device=%p, semaphore=%p)", (void*)api.m_device, (void*)frameData.imageAvailableSemaphore);
             api.vkDestroySemaphore(api.m_device, frameData.imageAvailableSemaphore, nullptr);
         }
         if (frameData.renderFinishedSemaphore != VK_NULL_HANDLE)
         {
+            SLANG_VK_TRACE_BEFORE("vkDestroySemaphore(device=%p, semaphore=%p)", (void*)api.m_device, (void*)frameData.renderFinishedSemaphore);
             api.vkDestroySemaphore(api.m_device, frameData.renderFinishedSemaphore, nullptr);
         }
     }
     m_frameData.clear();
     if (m_swapchain != VK_NULL_HANDLE)
     {
+        SLANG_VK_TRACE_BEFORE("vkDestroySwapchainKHR(device=%p, swapchain=%p)", (void*)api.m_device, (void*)m_swapchain);
         api.vkDestroySwapchainKHR(api.m_device, m_swapchain, nullptr);
         m_swapchain = VK_NULL_HANDLE;
     }
@@ -357,10 +380,13 @@ Result SurfaceImpl::acquireNextImage(ITexture** outTexture)
     auto& api = m_device->m_api;
 
     FrameData& frameData = m_frameData[m_currentFrameIndex];
+    SLANG_VK_TRACE_BEFORE("vkWaitForFences(device=%p, fenceCount=1)", (void*)api.m_device);
     SLANG_VK_RETURN_ON_FAIL(api.vkWaitForFences(api.m_device, 1, &frameData.fence, VK_TRUE, UINT64_MAX));
+    SLANG_VK_TRACE_BEFORE("vkResetFences(device=%p, fenceCount=1)", (void*)api.m_device);
     SLANG_VK_RETURN_ON_FAIL(api.vkResetFences(api.m_device, 1, &frameData.fence));
 
     m_currentTextureIndex = -1;
+    SLANG_VK_TRACE_BEFORE("vkAcquireNextImageKHR(device=%p, swapchain=%p)", (void*)api.m_device, (void*)m_swapchain);
     VkResult result = api.vkAcquireNextImageKHR(
         api.m_device,
         m_swapchain,
@@ -420,6 +446,7 @@ Result SurfaceImpl::present()
     presentInfo.pWaitSemaphores = &frameData.renderFinishedSemaphore;
     if (m_currentTextureIndex != -1)
     {
+        SLANG_VK_TRACE_BEFORE("vkQueuePresentKHR(queue=%p)", (void*)m_device->m_queue->m_queue);
         api.vkQueuePresentKHR(m_device->m_queue->m_queue, &presentInfo);
         return SLANG_OK;
     }

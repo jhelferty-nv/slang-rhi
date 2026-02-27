@@ -7,6 +7,7 @@
 #include "vk-acceleration-structure.h"
 #include "vk-shader-table.h"
 #include "vk-pipeline.h"
+#include "vk-trace.h"
 #include "vk-utils.h"
 #include "vk-shader-object.h"
 #include "vk-shader-object-layout.h"
@@ -149,6 +150,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
 
     VkCommandBufferBeginInfo beginInfo = {VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    SLANG_VK_TRACE_BEFORE("vkBeginCommandBuffer(commandBuffer=%p)", (void*)m_cmdBuffer);
     SLANG_VK_RETURN_ON_FAIL(m_api.vkBeginCommandBuffer(m_cmdBuffer, &beginInfo));
 
     CommandList& commandList = commandBuffer->m_commandList;
@@ -194,6 +196,7 @@ Result CommandRecorder::record(CommandBufferImpl* commandBuffer)
     commitBarriers();
     m_stateTracking.clear();
 
+    SLANG_VK_TRACE_BEFORE("vkEndCommandBuffer(commandBuffer=%p)", (void*)m_cmdBuffer);
     SLANG_VK_RETURN_ON_FAIL(m_api.vkEndCommandBuffer(m_cmdBuffer));
 
     return SLANG_OK;
@@ -215,6 +218,7 @@ void CommandRecorder::cmdCopyBuffer(const commands::CopyBuffer& cmd)
     copyRegion.srcOffset = cmd.srcOffset;
     copyRegion.size = cmd.size;
 
+    SLANG_VK_TRACE_BEFORE("vkCmdCopyBuffer(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdCopyBuffer(m_cmdBuffer, src->m_buffer.m_buffer, dst->m_buffer.m_buffer, 1, &copyRegion);
 }
 
@@ -290,6 +294,7 @@ void CommandRecorder::cmdCopyTexture(const commands::CopyTexture& cmd)
             region.dstOffset = {(int32_t)dstOffset.x, (int32_t)dstOffset.y, (int32_t)dstOffset.z};
             region.extent = {adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth};
 
+            SLANG_VK_TRACE_BEFORE("vkCmdCopyImage(commandBuffer=%p)", (void*)m_cmdBuffer);
             m_api.vkCmdCopyImage(m_cmdBuffer, src->m_image, srcImageLayout, dst->m_image, dstImageLayout, 1, &region);
         }
     }
@@ -358,6 +363,7 @@ void CommandRecorder::cmdCopyTextureToBuffer(const commands::CopyTextureToBuffer
     region.imageOffset = {(int32_t)srcOffset.x, (int32_t)srcOffset.y, (int32_t)srcOffset.z};
     region.imageExtent = {adjustedExtent.width, adjustedExtent.height, adjustedExtent.depth};
 
+    SLANG_VK_TRACE_BEFORE("vkCmdCopyImageToBuffer(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdCopyImageToBuffer(
         m_cmdBuffer,
         src->m_image,
@@ -387,6 +393,7 @@ void CommandRecorder::cmdClearBuffer(const commands::ClearBuffer& cmd)
     if (offset == 0 && size == buffer->m_desc.size)
         size = VK_WHOLE_SIZE;
 
+    SLANG_VK_TRACE_BEFORE("vkCmdFillBuffer(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdFillBuffer(m_cmdBuffer, buffer->m_buffer.m_buffer, offset, size, 0);
 }
 
@@ -407,6 +414,7 @@ void CommandRecorder::cmdClearTextureFloat(const commands::ClearTextureFloat& cm
     VkClearColorValue vkClearColor = {};
     std::memcpy(vkClearColor.float32, cmd.clearValue, sizeof(float) * 4);
 
+    SLANG_VK_TRACE_BEFORE("vkCmdClearColorImage(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdClearColorImage(
         m_cmdBuffer,
         texture->m_image,
@@ -434,6 +442,7 @@ void CommandRecorder::cmdClearTextureUint(const commands::ClearTextureUint& cmd)
     VkClearColorValue vkClearColor = {};
     std::memcpy(vkClearColor.uint32, cmd.clearValue, sizeof(uint32_t) * 4);
 
+    SLANG_VK_TRACE_BEFORE("vkCmdClearColorImage(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdClearColorImage(
         m_cmdBuffer,
         texture->m_image,
@@ -469,6 +478,7 @@ void CommandRecorder::cmdClearTextureDepthStencil(const commands::ClearTextureDe
     if (formatInfo.hasStencil && cmd.clearStencil)
         subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
 
+    SLANG_VK_TRACE_BEFORE("vkCmdClearDepthStencilImage(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdClearDepthStencilImage(
         m_cmdBuffer,
         texture->m_image,
@@ -523,6 +533,7 @@ void CommandRecorder::cmdUploadTextureData(const commands::UploadTextureData& cm
             region.imageOffset = {int32_t(cmd.offset.x), int32_t(cmd.offset.y), int32_t(cmd.offset.z)};
             region.imageExtent = {srLayout->size.width, srLayout->size.height, srLayout->size.depth};
 
+            SLANG_VK_TRACE_BEFORE("vkCmdCopyBufferToImage(commandBuffer=%p)", (void*)m_cmdBuffer);
             m_api.vkCmdCopyBufferToImage(
                 m_cmdBuffer,
                 buffer->m_buffer.m_buffer,
@@ -546,6 +557,7 @@ void CommandRecorder::cmdResolveQuery(const commands::ResolveQuery& cmd)
     requireBufferState(buffer, ResourceState::CopyDestination);
     commitBarriers();
 
+    SLANG_VK_TRACE_BEFORE("vkCmdCopyQueryPoolResults(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdCopyQueryPoolResults(
         m_cmdBuffer,
         queryPool->m_pool,
@@ -682,6 +694,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
     renderingInfo.pDepthAttachment = hasDepthAttachment ? &depthAttachmentInfo : nullptr;
     renderingInfo.pStencilAttachment = hasStencilAttachment ? &stencilAttachmentInfo : nullptr;
 
+    SLANG_VK_TRACE_BEFORE("vkCmdBeginRenderingKHR(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdBeginRenderingKHR(m_cmdBuffer, &renderingInfo);
 
     m_renderPassActive = true;
@@ -689,6 +702,7 @@ void CommandRecorder::cmdBeginRenderPass(const commands::BeginRenderPass& cmd)
 
 void CommandRecorder::cmdEndRenderPass(const commands::EndRenderPass& cmd)
 {
+    SLANG_VK_TRACE_BEFORE("vkCmdEndRenderingKHR(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdEndRenderingKHR(m_cmdBuffer);
 
     m_renderTargetViews.clear();
@@ -774,6 +788,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
     if (updatePipeline)
     {
         m_renderPipeline = checked_cast<RenderPipelineImpl*>(cmd.pipeline);
+        SLANG_VK_TRACE_BEFORE("vkCmdBindPipeline(commandBuffer=%p, GRAPHICS)", (void*)m_cmdBuffer);
         api.vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_renderPipeline->m_pipeline);
     }
 
@@ -793,6 +808,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             sampleLocInfo.sType = VK_STRUCTURE_TYPE_SAMPLE_LOCATIONS_INFO_EXT;
             sampleLocInfo.sampleLocationsCount = samplesPerPixel * pixelCount;
             sampleLocInfo.sampleLocationsPerPixel = (VkSampleCountFlagBits)samplesPerPixel;
+            SLANG_VK_TRACE_BEFORE("vkCmdSetSampleLocationsEXT(commandBuffer=%p)", (void*)m_vkCommandBuffer);
             api.vkCmdSetSampleLocationsEXT(m_vkCommandBuffer, &sampleLocInfo);
         }
     }
@@ -800,6 +816,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
 
     if (updateStencilRef)
     {
+        SLANG_VK_TRACE_BEFORE("vkCmdSetStencilReference(commandBuffer=%p)", (void*)m_cmdBuffer);
         api.vkCmdSetStencilReference(m_cmdBuffer, VK_STENCIL_FRONT_AND_BACK, state.stencilRef);
     }
 
@@ -816,6 +833,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
         }
         if (state.vertexBufferCount > 0)
         {
+            SLANG_VK_TRACE_BEFORE("vkCmdBindVertexBuffers(commandBuffer=%p)", (void*)m_cmdBuffer);
             api.vkCmdBindVertexBuffers(m_cmdBuffer, 0, state.vertexBufferCount, vertexBuffers, offsets);
         }
     }
@@ -829,6 +847,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             VkIndexType indexType =
                 state.indexFormat == IndexFormat::Uint32 ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
 
+            SLANG_VK_TRACE_BEFORE("vkCmdBindIndexBuffer(commandBuffer=%p)", (void*)m_cmdBuffer);
             api.vkCmdBindIndexBuffer(m_cmdBuffer, buffer->m_buffer.m_buffer, offset, indexType);
         }
         else
@@ -851,6 +870,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             dst.minDepth = src.minZ;
             dst.maxDepth = src.maxZ;
         }
+        SLANG_VK_TRACE_BEFORE("vkCmdSetViewport(commandBuffer=%p)", (void*)m_cmdBuffer);
         api.vkCmdSetViewport(m_cmdBuffer, 0, state.viewportCount, viewports);
     }
 
@@ -866,6 +886,7 @@ void CommandRecorder::cmdSetRenderState(const commands::SetRenderState& cmd)
             dst.extent.width = src.maxX - src.minX;
             dst.extent.height = src.maxY - src.minY;
         }
+        SLANG_VK_TRACE_BEFORE("vkCmdSetScissor(commandBuffer=%p)", (void*)m_cmdBuffer);
         api.vkCmdSetScissor(m_cmdBuffer, 0, state.scissorRectCount, scissorRects);
     }
 
@@ -885,6 +906,7 @@ void CommandRecorder::cmdDraw(const commands::Draw& cmd)
     if (!m_renderStateValid)
         return;
 
+    SLANG_VK_TRACE_BEFORE("vkCmdDraw(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdDraw(
         m_cmdBuffer,
         cmd.args.vertexCount,
@@ -899,6 +921,7 @@ void CommandRecorder::cmdDrawIndexed(const commands::DrawIndexed& cmd)
     if (!m_renderStateValid)
         return;
 
+    SLANG_VK_TRACE_BEFORE("vkCmdDrawIndexed(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdDrawIndexed(
         m_cmdBuffer,
         cmd.args.vertexCount,
@@ -926,6 +949,7 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
 
     if (countBuffer)
     {
+        SLANG_VK_TRACE_BEFORE("vkCmdDrawIndirectCount(commandBuffer=%p)", (void*)m_cmdBuffer);
         m_api.vkCmdDrawIndirectCount(
             m_cmdBuffer,
             argBuffer->m_buffer.m_buffer,
@@ -938,6 +962,7 @@ void CommandRecorder::cmdDrawIndirect(const commands::DrawIndirect& cmd)
     }
     else
     {
+        SLANG_VK_TRACE_BEFORE("vkCmdDrawIndirect(commandBuffer=%p)", (void*)m_cmdBuffer);
         m_api.vkCmdDrawIndirect(
             m_cmdBuffer,
             argBuffer->m_buffer.m_buffer,
@@ -965,6 +990,7 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
 
     if (countBuffer)
     {
+        SLANG_VK_TRACE_BEFORE("vkCmdDrawIndexedIndirectCount(commandBuffer=%p)", (void*)m_cmdBuffer);
         m_api.vkCmdDrawIndexedIndirectCount(
             m_cmdBuffer,
             argBuffer->m_buffer.m_buffer,
@@ -977,6 +1003,7 @@ void CommandRecorder::cmdDrawIndexedIndirect(const commands::DrawIndexedIndirect
     }
     else
     {
+        SLANG_VK_TRACE_BEFORE("vkCmdDrawIndexedIndirect(commandBuffer=%p)", (void*)m_cmdBuffer);
         m_api.vkCmdDrawIndexedIndirect(
             m_cmdBuffer,
             argBuffer->m_buffer.m_buffer,
@@ -992,6 +1019,7 @@ void CommandRecorder::cmdDrawMeshTasks(const commands::DrawMeshTasks& cmd)
     if (!m_renderStateValid)
         return;
 
+    SLANG_VK_TRACE_BEFORE("vkCmdDrawMeshTasksEXT(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdDrawMeshTasksEXT(m_cmdBuffer, cmd.x, cmd.y, cmd.z);
 }
 
@@ -1018,6 +1046,7 @@ void CommandRecorder::cmdSetComputeState(const commands::SetComputeState& cmd)
     if (updatePipeline)
     {
         m_computePipeline = checked_cast<ComputePipelineImpl*>(cmd.pipeline);
+        SLANG_VK_TRACE_BEFORE("vkCmdBindPipeline(commandBuffer=%p, COMPUTE)", (void*)m_cmdBuffer);
         api.vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_computePipeline->m_pipeline);
     }
 
@@ -1041,6 +1070,7 @@ void CommandRecorder::cmdDispatchCompute(const commands::DispatchCompute& cmd)
     if (!m_computeStateValid)
         return;
 
+    SLANG_VK_TRACE_BEFORE("vkCmdDispatch(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdDispatch(m_cmdBuffer, cmd.x, cmd.y, cmd.z);
 }
 
@@ -1053,6 +1083,7 @@ void CommandRecorder::cmdDispatchComputeIndirect(const commands::DispatchCompute
     requireBufferState(argBuffer, ResourceState::IndirectArgument);
     commitBarriers();
 
+    SLANG_VK_TRACE_BEFORE("vkCmdDispatchIndirect(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdDispatchIndirect(m_cmdBuffer, argBuffer->m_buffer.m_buffer, cmd.argBuffer.offset);
 }
 
@@ -1080,6 +1111,7 @@ void CommandRecorder::cmdSetRayTracingState(const commands::SetRayTracingState& 
     if (updatePipeline)
     {
         m_rayTracingPipeline = checked_cast<RayTracingPipelineImpl*>(cmd.pipeline);
+        SLANG_VK_TRACE_BEFORE("vkCmdBindPipeline(commandBuffer=%p, RAY_TRACING)", (void*)m_cmdBuffer);
         api.vkCmdBindPipeline(m_cmdBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR, m_rayTracingPipeline->m_pipeline);
     }
 
@@ -1133,6 +1165,7 @@ void CommandRecorder::cmdDispatchRays(const commands::DispatchRays& cmd)
 
     m_raygenSBT.deviceAddress = m_rayGenTableAddr + cmd.rayGenShaderIndex * m_raygenSBT.stride;
 
+    SLANG_VK_TRACE_BEFORE("vkCmdTraceRaysKHR(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdTraceRaysKHR(
         m_cmdBuffer,
         &m_raygenSBT,
@@ -1286,6 +1319,7 @@ void CommandRecorder::cmdBuildAccelerationStructure(const commands::BuildAcceler
     }
 
     auto rangeInfoPtr = rangeInfos.data();
+    SLANG_VK_TRACE_BEFORE("vkCmdBuildAccelerationStructuresKHR(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdBuildAccelerationStructuresKHR(m_cmdBuffer, 1, &converter.buildInfo, &rangeInfoPtr);
 
     if (cmd.propertyQueryCount)
@@ -1315,6 +1349,7 @@ void CommandRecorder::cmdCopyAccelerationStructure(const commands::CopyAccelerat
         copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_COMPACT_KHR;
         break;
     }
+    SLANG_VK_TRACE_BEFORE("vkCmdCopyAccelerationStructureKHR(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdCopyAccelerationStructureKHR(m_cmdBuffer, &copyInfo);
 }
 
@@ -1343,6 +1378,7 @@ void CommandRecorder::cmdSerializeAccelerationStructure(const commands::Serializ
     copyInfo.src = src->m_vkHandle;
     copyInfo.dst.deviceAddress = cmd.dst.getDeviceAddress();
     copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_SERIALIZE_KHR;
+    SLANG_VK_TRACE_BEFORE("vkCmdCopyAccelerationStructureToMemoryKHR(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdCopyAccelerationStructureToMemoryKHR(m_cmdBuffer, &copyInfo);
 }
 
@@ -1361,6 +1397,7 @@ void CommandRecorder::cmdDeserializeAccelerationStructure(const commands::Deseri
     copyInfo.src.deviceAddress = cmd.src.getDeviceAddress();
     copyInfo.dst = dst->m_vkHandle;
     copyInfo.mode = VK_COPY_ACCELERATION_STRUCTURE_MODE_DESERIALIZE_KHR;
+    SLANG_VK_TRACE_BEFORE("vkCmdCopyMemoryToAccelerationStructureKHR(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdCopyMemoryToAccelerationStructureKHR(m_cmdBuffer, &copyInfo);
 }
 
@@ -1425,6 +1462,7 @@ void CommandRecorder::cmdExecuteClusterOperation(const commands::ExecuteClusterO
     commandsInfo.srcInfosCount = desc.argCountBuffer ? desc.argCountBuffer.getDeviceAddress() : 0;
     commandsInfo.addressResolutionFlags = VkClusterAccelerationStructureAddressResolutionFlagBitsNV(0);
 
+    SLANG_VK_TRACE_BEFORE("vkCmdBuildClusterAccelerationStructureIndirectNV(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdBuildClusterAccelerationStructureIndirectNV(m_cmdBuffer, &commandsInfo);
 }
 
@@ -1457,6 +1495,7 @@ void CommandRecorder::cmdConvertCooperativeVectorMatrix(const commands::ConvertC
         info.dstStride = dstDesc.rowColumnStride;
         infos.push_back(info);
     }
+    SLANG_VK_TRACE_BEFORE("vkCmdConvertCooperativeVectorMatrixNV(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdConvertCooperativeVectorMatrixNV(m_cmdBuffer, infos.size(), infos.data());
 
     requireBufferState(dstBuffer, ResourceState::ShaderResource);
@@ -1484,6 +1523,7 @@ void CommandRecorder::cmdGlobalBarrier(const commands::GlobalBarrier& cmd)
     memoryBarrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
     memoryBarrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
 
+    SLANG_VK_TRACE_BEFORE("vkCmdPipelineBarrier(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdPipelineBarrier(
         m_cmdBuffer,
         VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
@@ -1504,6 +1544,7 @@ void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
     if (m_aftermathMarkerTracker)
     {
         uint64_t marker = m_aftermathMarkerTracker->pushGroup(cmd.name);
+        SLANG_VK_TRACE_BEFORE("vkCmdSetCheckpointNV(commandBuffer=%p)", (void*)m_cmdBuffer);
         m_api.vkCmdSetCheckpointNV(m_cmdBuffer, (const void*)marker);
     }
 #endif
@@ -1517,6 +1558,7 @@ void CommandRecorder::cmdPushDebugGroup(const commands::PushDebugGroup& cmd)
     label.color[1] = cmd.color.g;
     label.color[2] = cmd.color.b;
     label.color[3] = 1.0f;
+    SLANG_VK_TRACE_BEFORE("vkCmdBeginDebugUtilsLabelEXT(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdBeginDebugUtilsLabelEXT(m_cmdBuffer, &label);
 }
 
@@ -1532,6 +1574,7 @@ void CommandRecorder::cmdPopDebugGroup(const commands::PopDebugGroup& cmd)
     if (!m_api.vkCmdEndDebugUtilsLabelEXT)
         return;
 
+    SLANG_VK_TRACE_BEFORE("vkCmdEndDebugUtilsLabelEXT(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdEndDebugUtilsLabelEXT(m_cmdBuffer);
 }
 
@@ -1547,6 +1590,7 @@ void CommandRecorder::cmdInsertDebugMarker(const commands::InsertDebugMarker& cm
     label.color[1] = cmd.color.g;
     label.color[2] = cmd.color.b;
     label.color[3] = 1.0f;
+    SLANG_VK_TRACE_BEFORE("vkCmdInsertDebugUtilsLabelEXT(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdInsertDebugUtilsLabelEXT(m_cmdBuffer, &label);
 }
 
@@ -1554,7 +1598,9 @@ void CommandRecorder::cmdWriteTimestamp(const commands::WriteTimestamp& cmd)
 {
     auto queryPool = checked_cast<QueryPoolImpl*>(cmd.queryPool);
     uint32_t queryIndex = (uint32_t)cmd.queryIndex;
+    SLANG_VK_TRACE_BEFORE("vkCmdResetQueryPool(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdResetQueryPool(m_cmdBuffer, queryPool->m_pool, queryIndex, 1);
+    SLANG_VK_TRACE_BEFORE("vkCmdWriteTimestamp(commandBuffer=%p)", (void*)m_cmdBuffer);
     m_api.vkCmdWriteTimestamp(m_cmdBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool->m_pool, queryIndex);
 }
 
@@ -1570,6 +1616,7 @@ void CommandRecorder::setBindings(BindingDataImpl* bindingData, VkPipelineBindPo
     {
         VkPushConstantRange range = bindingData->pushConstantRanges[i];
         void* data = bindingData->pushConstantData[i];
+        SLANG_VK_TRACE_BEFORE("vkCmdPushConstants(commandBuffer=%p)", (void*)m_cmdBuffer);
         m_api.vkCmdPushConstants(
             m_cmdBuffer,
             bindingData->pipelineLayout,
@@ -1583,6 +1630,7 @@ void CommandRecorder::setBindings(BindingDataImpl* bindingData, VkPipelineBindPo
     // Bind descriptor sets.
     if (bindingData->descriptorSetCount)
     {
+        SLANG_VK_TRACE_BEFORE("vkCmdBindDescriptorSets(commandBuffer=%p)", (void*)m_cmdBuffer);
         m_api.vkCmdBindDescriptorSets(
             m_cmdBuffer,
             bindPoint,
@@ -1637,7 +1685,8 @@ void CommandRecorder::commitBarriers()
 
     auto submitBufferBarriers = [&]()
     {
-        m_api.vkCmdPipelineBarrier(
+        SLANG_VK_TRACE_BEFORE("vkCmdPipelineBarrier(commandBuffer=%p)", (void*)m_cmdBuffer);
+    m_api.vkCmdPipelineBarrier(
             m_cmdBuffer,
             activeBeforeStageFlags,
             activeAfterStageFlags,
@@ -1653,7 +1702,8 @@ void CommandRecorder::commitBarriers()
 
     auto submitImageBarriers = [&]()
     {
-        m_api.vkCmdPipelineBarrier(
+        SLANG_VK_TRACE_BEFORE("vkCmdPipelineBarrier(commandBuffer=%p)", (void*)m_cmdBuffer);
+    m_api.vkCmdPipelineBarrier(
             m_cmdBuffer,
             activeBeforeStageFlags,
             activeAfterStageFlags,
@@ -1813,7 +1863,9 @@ CommandQueueImpl::CommandQueueImpl(Device* device, QueueType type)
 
 CommandQueueImpl::~CommandQueueImpl()
 {
+    SLANG_VK_TRACE_BEFORE("vkQueueWaitIdle(queue=%p)", (void*)m_queue);
     m_api.vkQueueWaitIdle(m_queue);
+    SLANG_VK_TRACE_BEFORE("vkDestroySemaphore(device=%p, semaphore=%p)", (void*)m_api.m_device, (void*)m_trackingSemaphore);
     m_api.vkDestroySemaphore(m_api.m_device, m_trackingSemaphore, nullptr);
 }
 
@@ -1827,6 +1879,7 @@ void CommandQueueImpl::init(VkQueue queue, uint32_t queueFamilyIndex)
         timelineCreateInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
         VkSemaphoreCreateInfo semaphoreCreateInfo = {VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO};
         semaphoreCreateInfo.pNext = &timelineCreateInfo;
+        SLANG_VK_TRACE_BEFORE("vkCreateSemaphore(device=%p)", (void*)m_api.m_device);
         m_api.vkCreateSemaphore(m_api.m_device, &semaphoreCreateInfo, nullptr, &m_trackingSemaphore);
     }
 }
@@ -1891,6 +1944,7 @@ void CommandQueueImpl::retireCommandBuffers()
 
 uint64_t CommandQueueImpl::updateLastFinishedID()
 {
+    SLANG_VK_TRACE_BEFORE("vkGetSemaphoreCounterValue(device=%p)", (void*)m_api.m_device);
     m_api.vkGetSemaphoreCounterValue(m_api.m_device, m_trackingSemaphore, &m_lastFinishedID);
     return m_lastFinishedID;
 }
@@ -2004,6 +2058,7 @@ Result CommandQueueImpl::waitOnHost()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
     auto& api = device->m_api;
+    SLANG_VK_TRACE_BEFORE("vkQueueWaitIdle(queue=%p)", (void*)m_queue);
     api.vkQueueWaitIdle(m_queue);
     retireCommandBuffers();
     return SLANG_OK;
@@ -2100,6 +2155,7 @@ CommandBufferImpl::~CommandBufferImpl()
         device->m_aftermathCrashDumper->unregisterMarkerTracker(&m_aftermathMarkerTracker);
     }
 #endif
+    SLANG_VK_TRACE_BEFORE("vkFreeCommandBuffers(device=%p, commandPool=%p)", (void*)device->m_api.m_device, (void*)m_commandPool);
     device->m_api.vkFreeCommandBuffers(device->m_api.m_device, m_commandPool, 1, &m_commandBuffer);
     device->m_api.vkDestroyCommandPool(device->m_api.m_device, m_commandPool, nullptr);
     m_descriptorSetAllocator.close();
@@ -2122,6 +2178,7 @@ Result CommandBufferImpl::init()
     allocInfo.commandPool = m_commandPool;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = 1;
+    SLANG_VK_TRACE_BEFORE("vkAllocateCommandBuffers(device=%p)", (void*)device->m_api.m_device);
     SLANG_VK_RETURN_ON_FAIL(
         device->m_api.vkAllocateCommandBuffers(device->m_api.m_device, &allocInfo, &m_commandBuffer)
     );
@@ -2133,6 +2190,7 @@ Result CommandBufferImpl::reset()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
     m_commandList.reset();
+    SLANG_VK_TRACE_BEFORE("vkResetCommandPool(device=%p, commandPool=%p)", (void*)device->m_device, (void*)m_commandPool);
     SLANG_VK_RETURN_ON_FAIL(device->m_api.vkResetCommandPool(device->m_device, m_commandPool, 0));
     m_constantBufferPool.reset();
     m_descriptorSetAllocator.reset();

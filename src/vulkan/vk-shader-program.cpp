@@ -1,6 +1,7 @@
 #include "vk-shader-program.h"
 #include "vk-shader-object-layout.h"
 #include "vk-device.h"
+#include "vk-trace.h"
 #include "vk-utils.h"
 
 namespace rhi::vk {
@@ -24,6 +25,7 @@ ShaderProgramImpl::~ShaderProgramImpl()
                 device->m_aftermathCrashDumper->unregisterShader(reinterpret_cast<uint64_t>(module.shaderModule));
             }
 #endif
+            SLANG_VK_TRACE_BEFORE("vkDestroyShaderModule(device=%p, shaderModule=%p)", (void*)device->m_device, (void*)module.shaderModule);
             device->m_api.vkDestroyShaderModule(device->m_device, module.shaderModule, nullptr);
         }
     }
@@ -144,6 +146,8 @@ Result ShaderProgramImpl::createShaderModule(slang::EntryPointReflection* entryP
     VkShaderModuleCreateInfo moduleCreateInfo = {VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
     moduleCreateInfo.pCode = (uint32_t*)module.code->getBufferPointer();
     moduleCreateInfo.codeSize = module.code->getBufferSize();
+    VulkanTrace::dumpSpirvAndLog(moduleCreateInfo.pCode, moduleCreateInfo.codeSize);
+    SLANG_VK_TRACE_BEFORE("vkCreateShaderModule(device=%p, codeSize=%zu)", (void*)device->m_device, (size_t)moduleCreateInfo.codeSize);
     SLANG_VK_RETURN_ON_FAIL(
         device->m_api.vkCreateShaderModule(device->m_device, &moduleCreateInfo, nullptr, &module.shaderModule)
     );

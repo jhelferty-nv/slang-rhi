@@ -1,4 +1,5 @@
 #include "vk-texture.h"
+#include "vk-trace.h"
 #include "vk-device.h"
 #include "vk-buffer.h"
 #include "vk-utils.h"
@@ -25,11 +26,14 @@ TextureImpl::~TextureImpl()
     auto& api = device->m_api;
     for (auto& view : m_views)
     {
+        SLANG_VK_TRACE_BEFORE("vkDestroyImageView(device=%p, imageView=%p)", (void*)api.m_device, (void*)view.second.imageView);
         api.vkDestroyImageView(api.m_device, view.second.imageView, nullptr);
     }
     if (!m_isWeakImageReference)
     {
+        SLANG_VK_TRACE_BEFORE("vkFreeMemory(device=%p, memory=%p)", (void*)api.m_device, (void*)m_imageMemory);
         api.vkFreeMemory(api.m_device, m_imageMemory, nullptr);
+        SLANG_VK_TRACE_BEFORE("vkDestroyImage(device=%p, image=%p)", (void*)api.m_device, (void*)m_image);
         api.vkDestroyImage(api.m_device, m_image, nullptr);
     }
     if (m_sharedHandle)
@@ -196,6 +200,7 @@ TextureSubresourceView TextureImpl::getView(
         createInfo.subresourceRange.layerCount = m_desc.size.depth;
     }
 
+    SLANG_VK_TRACE_BEFORE("vkCreateImageView(device=%p)", (void*)device->m_api.m_device);
     VkResult result = device->m_api.vkCreateImageView(device->m_api.m_device, &createInfo, nullptr, &view.imageView);
     SLANG_RHI_ASSERT(result == VK_SUCCESS);
     return view;
@@ -345,9 +350,11 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         externalMemoryImageCreateInfo.handleTypes = extMemoryHandleType;
         imageInfo.pNext = &externalMemoryImageCreateInfo;
     }
+    SLANG_VK_TRACE_BEFORE("vkCreateImage(device=%p)", (void*)m_device);
     SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &texture->m_image));
 
     VkMemoryRequirements memRequirements;
+    SLANG_VK_TRACE_BEFORE("vkGetImageMemoryRequirements(device=%p, image=%p)", (void*)m_device, (void*)texture->m_image);
     m_api.vkGetImageMemoryRequirements(m_device, texture->m_image, &memRequirements);
 
     // Allocate the memory
@@ -379,9 +386,11 @@ Result DeviceImpl::createTexture(const TextureDesc& desc_, const SubresourceData
         exportMemoryAllocateInfo.handleTypes = extMemoryHandleType;
         allocInfo.pNext = &exportMemoryAllocateInfo;
     }
+    SLANG_VK_TRACE_BEFORE("vkAllocateMemory(device=%p, allocationSize=%llu)", (void*)m_device, (unsigned long long)allocInfo.allocationSize);
     SLANG_VK_RETURN_ON_FAIL(m_api.vkAllocateMemory(m_device, &allocInfo, nullptr, &texture->m_imageMemory));
 
     // Bind the memory to the image
+    SLANG_VK_TRACE_BEFORE("vkBindImageMemory(device=%p, image=%p, memory=%p)", (void*)m_device, (void*)texture->m_image, (void*)texture->m_imageMemory);
     m_api.vkBindImageMemory(m_device, texture->m_image, texture->m_imageMemory, 0);
 
     _labelObject((uint64_t)texture->m_image, VK_OBJECT_TYPE_IMAGE, desc.label);

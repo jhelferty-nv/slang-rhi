@@ -1,4 +1,5 @@
 #include "vk-query.h"
+#include "vk-trace.h"
 #include "vk-device.h"
 #include "vk-utils.h"
 
@@ -29,6 +30,7 @@ Result QueryPoolImpl::init()
     default:
         return SLANG_E_INVALID_ARG;
     }
+    SLANG_VK_TRACE_BEFORE("vkCreateQueryPool(device=%p)", (void*)device->m_api.m_device);
     SLANG_VK_RETURN_ON_FAIL(device->m_api.vkCreateQueryPool(device->m_api.m_device, &createInfo, nullptr, &m_pool));
 
     device->_labelObject((uint64_t)m_pool, VK_OBJECT_TYPE_QUERY_POOL, m_desc.label);
@@ -45,6 +47,7 @@ QueryPoolImpl::~QueryPoolImpl()
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
+    SLANG_VK_TRACE_BEFORE("vkDestroyQueryPool(device=%p)", (void*)device->m_api.m_device);
     device->m_api.vkDestroyQueryPool(device->m_api.m_device, m_pool, nullptr);
 }
 
@@ -52,6 +55,7 @@ Result QueryPoolImpl::getResult(uint32_t queryIndex, uint32_t count, uint64_t* d
 {
     DeviceImpl* device = getDevice<DeviceImpl>();
 
+    SLANG_VK_TRACE_BEFORE("vkGetQueryPoolResults(device=%p)", (void*)device->m_api.m_device);
     SLANG_VK_RETURN_ON_FAIL(device->m_api.vkGetQueryPoolResults(
         device->m_api.m_device,
         m_pool,

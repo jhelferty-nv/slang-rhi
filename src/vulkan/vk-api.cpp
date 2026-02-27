@@ -1,4 +1,5 @@
 #include "vk-api.h"
+#include "vk-trace.h"
 
 #include "core/assert.h"
 #include "../rhi-shared.h"
@@ -17,6 +18,7 @@ namespace rhi::vk {
 
 Result VulkanModule::init()
 {
+    VulkanTrace::init();
     if (isInitialized())
     {
         destroy();
@@ -137,8 +139,11 @@ Result VulkanApi::initPhysicalDevice(VkPhysicalDevice physicalDevice)
     SLANG_RHI_ASSERT(m_physicalDevice == VK_NULL_HANDLE);
     m_physicalDevice = physicalDevice;
 
+    SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceProperties(physicalDevice=%p)", (void*)m_physicalDevice);
     vkGetPhysicalDeviceProperties(m_physicalDevice, &m_deviceProperties);
+    SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceFeatures(physicalDevice=%p)", (void*)m_physicalDevice);
     vkGetPhysicalDeviceFeatures(m_physicalDevice, &m_deviceFeatures);
+    SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceMemoryProperties(physicalDevice=%p)", (void*)m_physicalDevice);
     vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &m_deviceMemoryProperties);
 
     return SLANG_OK;
@@ -196,10 +201,12 @@ int VulkanApi::findQueue(VkQueueFlags reqFlags) const
     SLANG_RHI_ASSERT(m_physicalDevice != VK_NULL_HANDLE);
 
     uint32_t numQueueFamilies = 0;
+    SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice=%p, pQueueFamilyPropertyCount=%p)", (void*)m_physicalDevice, (void*)&numQueueFamilies);
     vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &numQueueFamilies, nullptr);
 
     std::vector<VkQueueFamilyProperties> queueFamilies;
     queueFamilies.resize(numQueueFamilies);
+    SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice=%p, pQueueFamilyPropertyCount=%p, pQueueFamilyProperties=%p)", (void*)m_physicalDevice, (void*)&numQueueFamilies, (void*)queueFamilies.data());
     vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &numQueueFamilies, queueFamilies.data());
 
     // Find a queue that can service our needs

@@ -3,6 +3,7 @@
 #include "vk-shader-object-layout.h"
 #include "vk-shader-program.h"
 #include "vk-input-layout.h"
+#include "vk-trace.h"
 #include "vk-utils.h"
 
 #include "core/static_vector.h"
@@ -62,6 +63,7 @@ Result getPipelineCacheKey(DeviceImpl* device, void* createInfo, ISlangBlob** ou
     // Hash global key.
     {
         VkPipelineBinaryKeyKHR pipelineKey = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_KEY_KHR};
+        SLANG_VK_TRACE_BEFORE("vkGetPipelineKeyKHR(device=%p) global", (void*)device->m_device);
         SLANG_VK_RETURN_ON_FAIL(api.vkGetPipelineKeyKHR(device->m_device, nullptr, &pipelineKey));
         sha1.update(pipelineKey.key, pipelineKey.keySize);
     }
@@ -70,6 +72,7 @@ Result getPipelineCacheKey(DeviceImpl* device, void* createInfo, ISlangBlob** ou
         VkPipelineCreateInfoKHR pipelineCreateInfo = {VK_STRUCTURE_TYPE_PIPELINE_CREATE_INFO_KHR};
         pipelineCreateInfo.pNext = createInfo;
         VkPipelineBinaryKeyKHR pipelineKey = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_KEY_KHR};
+        SLANG_VK_TRACE_BEFORE("vkGetPipelineKeyKHR(device=%p) pipeline", (void*)device->m_device);
         SLANG_VK_RETURN_ON_FAIL(api.vkGetPipelineKeyKHR(device->m_device, &pipelineCreateInfo, &pipelineKey));
         sha1.update(pipelineKey.key, pipelineKey.keySize);
     }
@@ -89,12 +92,14 @@ Result serializePipelineBinaries(DeviceImpl* device, VkPipeline pipeline, ISlang
 
     VkPipelineBinaryHandlesInfoKHR binaryHandlesInfo = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_HANDLES_INFO_KHR};
 
+    SLANG_VK_TRACE_BEFORE("vkCreatePipelineBinariesKHR(device=%p) serialize 1", (void*)device->m_device);
     SLANG_VK_RETURN_ON_FAIL(
         api.vkCreatePipelineBinariesKHR(device->m_device, &binaryCreateInfo, nullptr, &binaryHandlesInfo)
     );
 
     short_vector<VkPipelineBinaryKHR> pipelineBinaries(binaryHandlesInfo.pipelineBinaryCount, VK_NULL_HANDLE);
     binaryHandlesInfo.pPipelineBinaries = pipelineBinaries.data();
+    SLANG_VK_TRACE_BEFORE("vkCreatePipelineBinariesKHR(device=%p) serialize 2", (void*)device->m_device);
     SLANG_VK_RETURN_ON_FAIL(
         api.vkCreatePipelineBinariesKHR(device->m_device, &binaryCreateInfo, nullptr, &binaryHandlesInfo)
     );
@@ -108,6 +113,7 @@ Result serializePipelineBinaries(DeviceImpl* device, VkPipeline pipeline, ISlang
         binaryInfo.pipelineBinary = pipelineBinaries[i];
         VkPipelineBinaryKeyKHR binaryKey = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_KEY_KHR};
         size_t binaryDataSize = 0;
+        SLANG_VK_TRACE_BEFORE("vkGetPipelineBinaryDataKHR(device=%p) size", (void*)device->m_device);
         SLANG_VK_RETURN_ON_FAIL(
             api.vkGetPipelineBinaryDataKHR(device->m_device, &binaryInfo, &binaryKey, &binaryDataSize, nullptr)
         );
@@ -135,10 +141,12 @@ Result serializePipelineBinaries(DeviceImpl* device, VkPipeline pipeline, ISlang
 
         VkPipelineBinaryKeyKHR binaryKey = {VK_STRUCTURE_TYPE_PIPELINE_BINARY_KEY_KHR};
         size_t binaryDataSize = 0;
+        SLANG_VK_TRACE_BEFORE("vkGetPipelineBinaryDataKHR(device=%p) key", (void*)device->m_device);
         SLANG_VK_RETURN_ON_FAIL(
             api.vkGetPipelineBinaryDataKHR(device->m_device, &binaryInfo, &binaryKey, &binaryDataSize, nullptr)
         );
 
+        SLANG_VK_TRACE_BEFORE("vkGetPipelineBinaryDataKHR(device=%p) data", (void*)device->m_device);
         SLANG_VK_RETURN_ON_FAIL(api.vkGetPipelineBinaryDataKHR(
             device->m_device,
             &binaryInfo,
@@ -157,6 +165,7 @@ Result serializePipelineBinaries(DeviceImpl* device, VkPipeline pipeline, ISlang
 
         binaryDataOffset += binaryDataSize;
 
+        SLANG_VK_TRACE_BEFORE("vkDestroyPipelineBinaryKHR(device=%p)", (void*)device->m_device);
         api.vkDestroyPipelineBinaryKHR(device->m_device, pipelineBinaries[i], nullptr);
     }
 
@@ -215,6 +224,7 @@ Result deserializePipelineBinaries(DeviceImpl* device, ISlangBlob* blob, short_v
     handlesInfo.pipelineBinaryCount = binaries.size();
     handlesInfo.pPipelineBinaries = binaries.data();
 
+    SLANG_VK_TRACE_BEFORE("vkCreatePipelineBinariesKHR(device=%p) deserialize", (void*)device->m_device);
     SLANG_VK_RETURN_ON_FAIL(api.vkCreatePipelineBinariesKHR(device->m_device, &createInfo, nullptr, &handlesInfo));
 
     outBinaries = binaries;
@@ -284,6 +294,7 @@ Result createPipelineWithCache(
             }
             for (auto& binary : pipelineBinaries)
             {
+                SLANG_VK_TRACE_BEFORE("vkDestroyPipelineBinaryKHR(device=%p) binary", (void*)device->m_device);
                 api.vkDestroyPipelineBinaryKHR(device->m_device, binary, nullptr);
             }
         }
@@ -346,6 +357,7 @@ Result createPipelineWithCache(
     {
         VkReleaseCapturedPipelineDataInfoKHR releaseInfo = {VK_STRUCTURE_TYPE_RELEASE_CAPTURED_PIPELINE_DATA_INFO_KHR};
         releaseInfo.pipeline = pipeline;
+        SLANG_VK_TRACE_BEFORE("vkReleaseCapturedPipelineDataKHR(device=%p)", (void*)device->m_device);
         SLANG_VK_RETURN_ON_FAIL(api.vkReleaseCapturedPipelineDataKHR(device->m_device, &releaseInfo, nullptr));
     }
 
@@ -364,6 +376,7 @@ RenderPipelineImpl::~RenderPipelineImpl()
 
     if (m_pipeline != VK_NULL_HANDLE)
     {
+        SLANG_VK_TRACE_BEFORE("vkDestroyPipeline(device=%p, pipeline=%p) RenderPipeline", (void*)device->m_api.m_device, (void*)m_pipeline);
         device->m_api.vkDestroyPipeline(device->m_api.m_device, m_pipeline, nullptr);
     }
 }
@@ -576,6 +589,7 @@ Result DeviceImpl::createRenderPipeline2(const RenderPipelineDesc& desc, IRender
             &createInfo,
             [](DeviceImpl* device, VkGraphicsPipelineCreateInfo* createInfo2, VkPipeline* pipeline) -> VkResult
             {
+                SLANG_VK_TRACE_BEFORE("vkCreateGraphicsPipelines(device=%p)", (void*)device->m_device);
                 return device->m_api
                     .vkCreateGraphicsPipelines(device->m_device, VK_NULL_HANDLE, 1, createInfo2, nullptr, pipeline);
             },
@@ -619,6 +633,7 @@ ComputePipelineImpl::~ComputePipelineImpl()
 
     if (m_pipeline != VK_NULL_HANDLE)
     {
+        SLANG_VK_TRACE_BEFORE("vkDestroyPipeline(device=%p) ComputePipeline", (void*)device->m_api.m_device);
         device->m_api.vkDestroyPipeline(device->m_api.m_device, m_pipeline, nullptr);
     }
 }
@@ -650,6 +665,7 @@ Result DeviceImpl::createComputePipeline2(const ComputePipelineDesc& desc, IComp
             &createInfo,
             [](DeviceImpl* device, VkComputePipelineCreateInfo* createInfo2, VkPipeline* pipeline) -> VkResult
             {
+                SLANG_VK_TRACE_BEFORE("vkCreateComputePipelines(device=%p)", (void*)device->m_device);
                 return device->m_api
                     .vkCreateComputePipelines(device->m_device, VK_NULL_HANDLE, 1, createInfo2, nullptr, pipeline);
             },
@@ -693,6 +709,7 @@ RayTracingPipelineImpl::~RayTracingPipelineImpl()
 
     if (m_pipeline != VK_NULL_HANDLE)
     {
+        SLANG_VK_TRACE_BEFORE("vkDestroyPipeline(device=%p) RayTracingPipeline", (void*)device->m_api.m_device);
         device->m_api.vkDestroyPipeline(device->m_api.m_device, m_pipeline, nullptr);
     }
 }
@@ -832,6 +849,7 @@ Result DeviceImpl::createRayTracingPipeline2(const RayTracingPipelineDesc& desc,
             &createInfo,
             [](DeviceImpl* device, VkRayTracingPipelineCreateInfoKHR* createInfo2, VkPipeline* pipeline) -> VkResult
             {
+                SLANG_VK_TRACE_BEFORE("vkCreateRayTracingPipelinesKHR(device=%p)", (void*)device->m_device);
                 return device->m_api.vkCreateRayTracingPipelinesKHR(
                     device->m_device,
                     VK_NULL_HANDLE,

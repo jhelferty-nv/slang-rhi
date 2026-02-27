@@ -12,6 +12,7 @@
 #include "vk-shader-table.h"
 #include "vk-input-layout.h"
 #include "vk-acceleration-structure.h"
+#include "vk-trace.h"
 #include "vk-utils.h"
 
 #include "aftermath.h"
@@ -51,8 +52,9 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
     instanceCreateInfo.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
     VkInstance instance;
+    SLANG_VK_TRACE_BEFORE("vkCreateInstance(pCreateInfo=%p)", (void*)&instanceCreateInfo);
     SLANG_VK_RETURN_ON_FAIL(api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance));
-    SLANG_RHI_DEFERRED({ api.vkDestroyInstance(instance, nullptr); });
+    SLANG_RHI_DEFERRED({ SLANG_VK_TRACE_BEFORE("vkDestroyInstance(instance=%p)", (void*)instance); api.vkDestroyInstance(instance, nullptr); });
 
     // This will fail due to not loading any extensions.
     api.initInstanceProcs(instance);
@@ -64,8 +66,10 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
     }
 
     uint32_t physicalDeviceCount = 0;
+    SLANG_VK_TRACE_BEFORE("vkEnumeratePhysicalDevices(instance=%p, pPhysicalDeviceCount=%p)", (void*)instance, (void*)&physicalDeviceCount);
     SLANG_VK_RETURN_ON_FAIL(api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr));
     std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
+    SLANG_VK_TRACE_BEFORE("vkEnumeratePhysicalDevices(instance=%p, pPhysicalDevices=%p)", (void*)instance, (void*)physicalDevices.data());
     SLANG_VK_RETURN_ON_FAIL(api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data()));
 
     for (const auto& physicalDevice : physicalDevices)
@@ -74,6 +78,7 @@ inline Result getAdaptersImpl(std::vector<AdapterImpl>& outAdapters)
         VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
         props.pNext = &idProps;
         SLANG_RHI_ASSERT(api.vkGetPhysicalDeviceFeatures2);
+        SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceProperties2(physicalDevice=%p)", (void*)physicalDevice);
         api.vkGetPhysicalDeviceProperties2(physicalDevice, &props);
 
         AdapterInfo info = {};
@@ -144,6 +149,7 @@ DeviceImpl::~DeviceImpl()
 
     if (m_api.vkDestroySampler)
     {
+        SLANG_VK_TRACE_BEFORE("vkDestroySampler(device=%p, sampler=%p)", (void*)m_device, (void*)m_defaultSampler);
         m_api.vkDestroySampler(m_device, m_defaultSampler, nullptr);
     }
 
@@ -155,12 +161,21 @@ DeviceImpl::~DeviceImpl()
     if (m_device != VK_NULL_HANDLE)
     {
         if (!m_existingDeviceHandles.handles[2])
+        {
+            SLANG_VK_TRACE_BEFORE("vkDestroyDevice(device=%p)", (void*)m_device);
             m_api.vkDestroyDevice(m_device, nullptr);
+        }
         m_device = VK_NULL_HANDLE;
         if (m_debugReportCallback != VK_NULL_HANDLE)
+        {
+            SLANG_VK_TRACE_BEFORE("vkDestroyDebugUtilsMessengerEXT(instance=%p)", (void*)m_api.m_instance);
             m_api.vkDestroyDebugUtilsMessengerEXT(m_api.m_instance, m_debugReportCallback, nullptr);
+        }
         if (m_api.m_instance != VK_NULL_HANDLE && !m_existingDeviceHandles.handles[0])
+        {
+            SLANG_VK_TRACE_BEFORE("vkDestroyInstance(instance=%p)", (void*)m_api.m_instance);
             m_api.vkDestroyInstance(m_api.m_instance, nullptr);
+        }
     }
 }
 
@@ -337,10 +352,12 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         if (enableValidationLayer)
         {
             uint32_t layerCount;
+            SLANG_VK_TRACE_BEFORE("vkEnumerateInstanceLayerProperties(pPropertyCount=%p)", (void*)&layerCount);
             m_api.vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
             std::vector<VkLayerProperties> availableLayers;
             availableLayers.resize(layerCount);
+            SLANG_VK_TRACE_BEFORE("vkEnumerateInstanceLayerProperties(pProperties=%p)", (void*)availableLayers.data());
             m_api.vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
             for (auto& layer : availableLayers)
@@ -381,6 +398,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             // the layer is known earlier). It might, for example, be absent
             // from the system library search path, and not referenced with an
             // absolute path in VkLayer_khronos_validation.json.
+            SLANG_VK_TRACE_BEFORE("vkCreateInstance(pCreateInfo=%p)", (void*)&instanceCreateInfo);
             const auto r = m_api.vkCreateInstance(&instanceCreateInfo, nullptr, &instance);
             if (r == VK_SUCCESS)
             {
@@ -415,6 +433,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         messengerCreateInfo.pfnUserCallback = &debugMessageCallback;
         messengerCreateInfo.pUserData = this;
 
+        SLANG_VK_TRACE_BEFORE("vkCreateDebugUtilsMessengerEXT(instance=%p)", (void*)instance);
         SLANG_VK_RETURN_ON_FAIL(
             m_api.vkCreateDebugUtilsMessengerEXT(instance, &messengerCreateInfo, nullptr, &m_debugReportCallback)
         );
@@ -428,8 +447,10 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         SLANG_RETURN_ON_FAIL(selectAdapter(this, getAdapters(), desc, adapter));
 
         uint32_t physicalDeviceCount = 0;
+        SLANG_VK_TRACE_BEFORE("vkEnumeratePhysicalDevices(instance=%p, pPhysicalDeviceCount=%p)", (void*)instance, (void*)&physicalDeviceCount);
         SLANG_VK_RETURN_ON_FAIL(m_api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr));
         std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
+        SLANG_VK_TRACE_BEFORE("vkEnumeratePhysicalDevices(instance=%p, pPhysicalDevices=%p)", (void*)instance, (void*)physicalDevices.data());
         SLANG_VK_RETURN_ON_FAIL(
             m_api.vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data())
         );
@@ -440,6 +461,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             VkPhysicalDeviceIDProperties idProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
             VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
             props.pNext = &idProps;
+            SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceProperties2(physicalDevice=%p)", (void*)physicalDevices[i]);
             m_api.vkGetPhysicalDeviceProperties2(physicalDevices[i], &props);
             if (memcmp(adapter->m_deviceUUID, idProps.deviceUUID, VK_UUID_SIZE) == 0)
             {
@@ -464,9 +486,11 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
 
     // Query the available extensions
     uint32_t extensionCount = 0;
+    SLANG_VK_TRACE_BEFORE("vkEnumerateDeviceExtensionProperties(physicalDevice=%p, pPropertyCount=%p)", (void*)m_api.m_physicalDevice, (void*)&extensionCount);
     m_api.vkEnumerateDeviceExtensionProperties(m_api.m_physicalDevice, NULL, &extensionCount, NULL);
     std::vector<VkExtensionProperties> extensions;
     extensions.resize(extensionCount);
+    SLANG_VK_TRACE_BEFORE("vkEnumerateDeviceExtensionProperties(physicalDevice=%p, pProperties=%p)", (void*)m_api.m_physicalDevice, (void*)extensions.data());
     m_api.vkEnumerateDeviceExtensionProperties(m_api.m_physicalDevice, NULL, &extensionCount, extensions.data());
     std::set<std::string> extensionNames;
     for (const auto& e : extensions)
@@ -488,10 +512,12 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
     {
         VkPhysicalDeviceFeatures2 deviceFeatures2 = {};
         deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceFeatures2(physicalDevice=%p)", (void*)m_api.m_physicalDevice);
         m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &deviceFeatures2);
     }
 
     VkPhysicalDeviceProperties basicProps = {};
+    SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceProperties(physicalDevice=%p)", (void*)m_api.m_physicalDevice);
     m_api.vkGetPhysicalDeviceProperties(m_api.m_physicalDevice, &basicProps);
 
     // Get the API version
@@ -575,6 +601,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
             EXTEND_DESC_CHAIN(deviceFeatures2, extendedFeatures.vulkan14Features);
         }
 
+        SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceFeatures2(physicalDevice=%p)", (void*)m_api.m_physicalDevice);
         m_api.vkGetPhysicalDeviceFeatures2(m_api.m_physicalDevice, &deviceFeatures2);
 
         if (deviceFeatures2.features.shaderResourceMinLod)
@@ -1054,6 +1081,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         EXTEND_DESC_CHAIN(extendedProps, rtpProps);
         EXTEND_DESC_CHAIN(extendedProps, subgroupProps);
 
+        SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceProperties2(physicalDevice=%p) extended", (void*)m_api.m_physicalDevice);
         m_api.vkGetPhysicalDeviceProperties2(m_api.m_physicalDevice, &extendedProps);
         m_api.m_rayTracingPipelineProperties = rtpProps;
 
@@ -1236,6 +1264,7 @@ Result DeviceImpl::initVulkanInstanceAndDevice(
         deviceCreateInfo.enabledExtensionCount = uint32_t(deviceExtensions.size());
         deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
+        SLANG_VK_TRACE_BEFORE("vkCreateDevice(physicalDevice=%p)", (void*)m_api.m_physicalDevice);
         if (m_api.vkCreateDevice(m_api.m_physicalDevice, &deviceCreateInfo, nullptr, &m_device) != VK_SUCCESS)
             return SLANG_FAIL;
     }
@@ -1289,6 +1318,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
     VkPhysicalDeviceIDProperties idProps = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES};
     VkPhysicalDeviceProperties2 props = {VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2};
     props.pNext = &idProps;
+    SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceProperties2(physicalDevice=%p)", (void*)m_api.m_physicalDevice);
     m_api.vkGetPhysicalDeviceProperties2(m_api.m_physicalDevice, &props);
     const VkPhysicalDeviceProperties& basicProps = props.properties;
 
@@ -1419,6 +1449,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         VkFormat vkFormat = getVkFormat(format);
 
         VkFormatProperties2 props2 = {VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2};
+        SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceFormatProperties2(physicalDevice=%p, format=%u)", (void*)m_api.m_physicalDevice, (unsigned)vkFormat);
         m_api.vkGetPhysicalDeviceFormatProperties2(m_api.m_physicalDevice, vkFormat, &props2);
 
         VkFormatFeatureFlags bf = props2.formatProperties.bufferFeatures;
@@ -1460,6 +1491,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
                 imageInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
             VkImageFormatProperties2 imageProps = {VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2};
+            SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceImageFormatProperties2(physicalDevice=%p)", (void*)m_api.m_physicalDevice);
             if (m_api.vkGetPhysicalDeviceImageFormatProperties2(m_api.m_physicalDevice, &imageInfo, &imageProps) !=
                 VK_SUCCESS)
             {
@@ -1526,6 +1558,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
         samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
         samplerInfo.minLod = 0.0f;
         samplerInfo.maxLod = 0.0f;
+        SLANG_VK_TRACE_BEFORE("vkCreateSampler(device=%p) defaultSampler", (void*)m_device);
         SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &m_defaultSampler));
     }
 
@@ -1538,6 +1571,7 @@ Result DeviceImpl::initialize(const DeviceDesc& desc)
 
     {
         VkQueue queue;
+        SLANG_VK_TRACE_BEFORE("vkGetDeviceQueue(device=%p, queueFamilyIndex=%u)", (void*)m_device, m_queueFamilyIndex);
         m_api.vkGetDeviceQueue(m_device, m_queueFamilyIndex, 0, &queue);
         SLANG_RETURN_ON_FAIL(m_deviceQueue.init(m_api, queue, m_queueFamilyIndex));
     }
@@ -1595,6 +1629,7 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     VkPipelineStageFlags srcStageFlags = calcPipelineStageFlags(bufferImpl->m_desc.defaultState, true);
     VkPipelineStageFlags dstStageFlags = calcPipelineStageFlags(ResourceState::CopySource, false);
 
+    SLANG_VK_TRACE_BEFORE("vkCmdPipelineBarrier(commandBuffer=%p) buffer pre-copy", (void*)commandBuffer);
     m_api.vkCmdPipelineBarrier(
         commandBuffer,
         srcStageFlags,
@@ -1611,11 +1646,13 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
     VkBufferCopy copyInfo = {};
     copyInfo.size = size;
     copyInfo.srcOffset = offset;
+    SLANG_VK_TRACE_BEFORE("vkCmdCopyBuffer(commandBuffer=%p)", (void*)commandBuffer);
     m_api.vkCmdCopyBuffer(commandBuffer, bufferImpl->m_buffer.m_buffer, staging.m_buffer, 1, &copyInfo);
 
     std::swap(barrier.srcAccessMask, barrier.dstAccessMask);
     std::swap(srcStageFlags, dstStageFlags);
 
+    SLANG_VK_TRACE_BEFORE("vkCmdPipelineBarrier(commandBuffer=%p) buffer post-copy", (void*)commandBuffer);
     m_api.vkCmdPipelineBarrier(
         commandBuffer,
         srcStageFlags,
@@ -1633,9 +1670,11 @@ Result DeviceImpl::readBuffer(IBuffer* buffer, Offset offset, Size size, void* o
 
     // Write out the data from the buffer
     void* mappedData = nullptr;
+    SLANG_VK_TRACE_BEFORE("vkMapMemory(device=%p, memory=%p)", (void*)m_device, (void*)staging.m_memory);
     SLANG_RETURN_ON_FAIL(m_api.vkMapMemory(m_device, staging.m_memory, 0, size, 0, &mappedData));
 
     std::memcpy(outData, mappedData, size);
+    SLANG_VK_TRACE_BEFORE("vkUnmapMemory(device=%p, memory=%p)", (void*)m_device, (void*)staging.m_memory);
     m_api.vkUnmapMemory(m_device, staging.m_memory);
 
     return SLANG_OK;
@@ -1653,6 +1692,7 @@ Result DeviceImpl::getAccelerationStructureSizes(
     VkAccelerationStructureBuildSizesInfoKHR sizeInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
     AccelerationStructureBuildDescConverter converter;
     SLANG_RETURN_ON_FAIL(converter.convert(desc, m_debugCallback));
+    SLANG_VK_TRACE_BEFORE("vkGetAccelerationStructureBuildSizesKHR(device=%p)", (void*)m_api.m_device);
     m_api.vkGetAccelerationStructureBuildSizesKHR(
         m_api.m_device,
         VK_ACCELERATION_STRUCTURE_BUILD_TYPE_DEVICE_KHR,
@@ -1679,6 +1719,7 @@ Result DeviceImpl::getClusterOperationSizes(const ClusterOperationParams& params
     VkClusterAccelerationStructureInputInfoNV info =
         translateClusterOperationParams(params, bottomLevelInput, triangleClusterInput, moveObjectsInput);
     VkAccelerationStructureBuildSizesInfoKHR sizeInfo = {VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_BUILD_SIZES_INFO_KHR};
+    SLANG_VK_TRACE_BEFORE("vkGetClusterAccelerationStructureBuildSizesNV(device=%p)", (void*)m_device);
     m_api.vkGetClusterAccelerationStructureBuildSizesNV(m_device, &info, &sizeInfo);
 
     outSizes->resultSize = sizeInfo.accelerationStructureSize;
@@ -1728,6 +1769,7 @@ Result DeviceImpl::createAccelerationStructure(
             createInfo.pNext = &motionInfo;
         }
     }
+    SLANG_VK_TRACE_BEFORE("vkCreateAccelerationStructureKHR(device=%p)", (void*)m_api.m_device);
     SLANG_VK_RETURN_ON_FAIL(
         m_api.vkCreateAccelerationStructureKHR(m_api.m_device, &createInfo, nullptr, &result->m_vkHandle)
     );
@@ -1767,6 +1809,7 @@ void DeviceImpl::_transitionImageLayout(
     VkPipelineStageFlags sourceStage = calcPipelineStageFlagsFromImageLayout(oldLayout);
     VkPipelineStageFlags destinationStage = calcPipelineStageFlagsFromImageLayout(newLayout);
 
+    SLANG_VK_TRACE_BEFORE("vkCmdPipelineBarrier(commandBuffer=%p) image layout", (void*)commandBuffer);
     m_api.vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
@@ -1800,6 +1843,7 @@ void DeviceImpl::_labelObject(uint64_t object, VkObjectType objectType, const ch
         nameInfo.objectHandle = object;
         nameInfo.objectType = objectType;
         nameInfo.pObjectName = label;
+        SLANG_VK_TRACE_BEFORE("vkSetDebugUtilsObjectNameEXT(device=%p)", (void*)m_api.m_device);
         m_api.vkSetDebugUtilsObjectNameEXT(m_api.m_device, &nameInfo);
     }
 }
@@ -1863,14 +1907,17 @@ Result DeviceImpl::getTextureAllocationInfo(const TextureDesc& desc_, Size* outS
     imageInfo.samples = (VkSampleCountFlagBits)desc.sampleCount;
 
     VkImage image;
+    SLANG_VK_TRACE_BEFORE("vkCreateImage(device=%p) getTextureAllocationInfo", (void*)m_device);
     SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateImage(m_device, &imageInfo, nullptr, &image));
 
     VkMemoryRequirements memRequirements;
+    SLANG_VK_TRACE_BEFORE("vkGetImageMemoryRequirements(device=%p, image=%p)", (void*)m_device, (void*)image);
     m_api.vkGetImageMemoryRequirements(m_device, image, &memRequirements);
 
     *outSize = (Size)memRequirements.size;
     *outAlignment = (Size)memRequirements.alignment;
 
+    SLANG_VK_TRACE_BEFORE("vkDestroyImage(device=%p, image=%p)", (void*)m_device, (void*)image);
     m_api.vkDestroyImage(m_device, image, nullptr);
     return SLANG_OK;
 }
@@ -1900,11 +1947,13 @@ Result DeviceImpl::getCooperativeVectorProperties(CooperativeVectorProperties* p
     if (m_cooperativeVectorProperties.empty())
     {
         uint32_t vkPropertyCount = 0;
+        SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceCooperativeVectorPropertiesNV(physicalDevice=%p, pPropertyCount=%p)", (void*)m_api.m_physicalDevice, (void*)&vkPropertyCount);
         m_api.vkGetPhysicalDeviceCooperativeVectorPropertiesNV(m_api.m_physicalDevice, &vkPropertyCount, nullptr);
         std::vector<VkCooperativeVectorPropertiesNV> vkProperties(
             vkPropertyCount,
             {VK_STRUCTURE_TYPE_COOPERATIVE_VECTOR_PROPERTIES_NV}
         );
+        SLANG_VK_TRACE_BEFORE("vkGetPhysicalDeviceCooperativeVectorPropertiesNV(physicalDevice=%p, pProperties=%p)", (void*)m_api.m_physicalDevice, (void*)vkProperties.data());
         SLANG_VK_RETURN_ON_FAIL(m_api.vkGetPhysicalDeviceCooperativeVectorPropertiesNV(
             m_api.m_physicalDevice,
             &vkPropertyCount,
@@ -1954,6 +2003,7 @@ Result DeviceImpl::getCooperativeVectorMatrixSize(
     info.srcStride = rowColumnStride;
     info.dstLayout = translateCooperativeVectorMatrixLayout(layout);
     info.dstStride = rowColumnStride;
+    SLANG_VK_TRACE_BEFORE("vkConvertCooperativeVectorMatrixNV(device=%p) getCooperativeVectorMatrixSize", (void*)m_api.m_device);
     SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info));
     return SLANG_OK;
 }
@@ -1989,6 +2039,7 @@ Result DeviceImpl::convertCooperativeVectorMatrix(
         info.srcStride = srcDesc.rowColumnStride;
         info.dstLayout = translateCooperativeVectorMatrixLayout(dstDesc.layout);
         info.dstStride = dstDesc.rowColumnStride;
+        SLANG_VK_TRACE_BEFORE("vkConvertCooperativeVectorMatrixNV(device=%p) convertCooperativeVectorMatrix", (void*)m_api.m_device);
         SLANG_VK_RETURN_ON_FAIL(m_api.vkConvertCooperativeVectorMatrixNV(m_api.m_device, &info));
     }
     return SLANG_OK;
@@ -2103,6 +2154,7 @@ Result DeviceImpl::waitForFences(
     waitInfo.semaphoreCount = fenceCount;
     waitInfo.pSemaphores = semaphores.data();
     waitInfo.pValues = fenceValues;
+    SLANG_VK_TRACE_BEFORE("vkWaitSemaphores(device=%p, semaphoreCount=%u)", (void*)m_api.m_device, fenceCount);
     auto result = m_api.vkWaitSemaphores(m_api.m_device, &waitInfo, timeout);
     if (result == VK_TIMEOUT)
         return SLANG_E_TIME_OUT;

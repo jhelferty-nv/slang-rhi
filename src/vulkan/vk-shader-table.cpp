@@ -3,6 +3,7 @@
 #include "vk-buffer.h"
 #include "vk-pipeline.h"
 #include "vk-command.h"
+#include "vk-trace.h"
 
 #include <vector>
 
@@ -55,6 +56,7 @@ BufferImpl* ShaderTableImpl::getBuffer(RayTracingPipelineImpl* pipeline)
     auto handleCount = pipeline->m_shaderGroupCount;
     auto totalHandleSize = handleSize * handleCount;
     handles.resize(totalHandleSize);
+    SLANG_VK_TRACE_BEFORE("vkGetRayTracingShaderGroupHandlesKHR(device=%p, pipeline=%p)", (void*)device->m_device, (void*)pipeline->m_pipeline);
     auto result = api.vkGetRayTracingShaderGroupHandlesKHR(
         device->m_device,
         pipeline->m_pipeline,

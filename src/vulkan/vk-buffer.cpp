@@ -1,5 +1,6 @@
 #include "vk-buffer.h"
 #include "vk-device.h"
+#include "vk-trace.h"
 #include "vk-utils.h"
 
 #if SLANG_WINDOWS_FAMILY
@@ -36,6 +37,7 @@ Result createVkBuffer(
         bufferCreateInfo.pNext = &externalMemoryBufferCreateInfo;
     }
 
+    SLANG_VK_TRACE_BEFORE("vkCreateBuffer(device=%p)", (void*)api.m_device);
     SLANG_VK_RETURN_ON_FAIL(api.vkCreateBuffer(api.m_device, &bufferCreateInfo, nullptr, outBuffer));
     return SLANG_OK;
 }
@@ -90,6 +92,7 @@ Result allocateVkMemory(
         allocateInfo.pNext = &flagInfo;
     }
 
+    SLANG_VK_TRACE_BEFORE("vkAllocateMemory(device=%p)", (void*)api.m_device);
     SLANG_VK_RETURN_ON_FAIL(api.vkAllocateMemory(api.m_device, &allocateInfo, nullptr, outMemory));
     return SLANG_OK;
 }
@@ -105,6 +108,7 @@ Result allocateVkMemoryForBuffer(
 )
 {
     VkMemoryRequirements memoryReqs = {};
+    SLANG_VK_TRACE_BEFORE("vkGetBufferMemoryRequirements(device=%p, buffer=%p)", (void*)api.m_device, (void*)buffer);
     api.vkGetBufferMemoryRequirements(api.m_device, buffer, &memoryReqs);
 
     bool needsDeviceAddress = (bufferUsage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) != 0;
@@ -142,6 +146,7 @@ Result VKBufferHandleRAII::init(
     );
 
     // Bind buffer to memory
+    SLANG_VK_TRACE_BEFORE("vkBindBufferMemory(device=%p)", (void*)api.m_device);
     SLANG_VK_RETURN_ON_FAIL(api.vkBindBufferMemory(api.m_device, m_buffer, m_memory, 0));
 
     return SLANG_OK;
@@ -166,6 +171,7 @@ BufferImpl::~BufferImpl()
 
     for (auto& view : m_views)
     {
+        SLANG_VK_TRACE_BEFORE("vkDestroyBufferView(device=%p)", (void*)m_buffer.m_api->m_device);
         m_buffer.m_api->vkDestroyBufferView(m_buffer.m_api->m_device, view.second, nullptr);
     }
 
@@ -379,8 +385,10 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
             ));
             // Copy into staging buffer
             void* mappedData = nullptr;
+            SLANG_VK_TRACE_BEFORE("vkMapMemory(device=%p) upload", (void*)m_device);
             SLANG_VK_CHECK(m_api.vkMapMemory(m_device, buffer->m_uploadBuffer.m_memory, 0, bufferSize, 0, &mappedData));
             ::memcpy(mappedData, initData, bufferSize);
+            SLANG_VK_TRACE_BEFORE("vkUnmapMemory(device=%p) upload", (void*)m_device);
             m_api.vkUnmapMemory(m_device, buffer->m_uploadBuffer.m_memory);
 
             // Copy from staging buffer to real buffer
@@ -388,6 +396,7 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
 
             VkBufferCopy copyInfo = {};
             copyInfo.size = bufferSize;
+            SLANG_VK_TRACE_BEFORE("vkCmdCopyBuffer(device queue)", (void*)m_device);
             m_api.vkCmdCopyBuffer(
                 commandBuffer,
                 buffer->m_uploadBuffer.m_buffer,
@@ -401,8 +410,10 @@ Result DeviceImpl::createBuffer(const BufferDesc& desc_, const void* initData, I
         {
             // Copy into mapped buffer directly
             void* mappedData = nullptr;
+            SLANG_VK_TRACE_BEFORE("vkMapMemory(device=%p) buffer", (void*)m_device);
             SLANG_VK_CHECK(m_api.vkMapMemory(m_device, buffer->m_buffer.m_memory, 0, bufferSize, 0, &mappedData));
             ::memcpy(mappedData, initData, bufferSize);
+            SLANG_VK_TRACE_BEFORE("vkUnmapMemory(device=%p) buffer", (void*)m_device);
             m_api.vkUnmapMemory(m_device, buffer->m_buffer.m_memory);
         }
     }
@@ -431,6 +442,7 @@ Result DeviceImpl::createBufferFromNativeHandle(NativeHandle handle, const Buffe
 Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    SLANG_VK_TRACE_BEFORE("vkMapMemory(device=%p) map", (void*)m_api.m_device);
     SLANG_VK_RETURN_ON_FAIL(
         m_api.vkMapMemory(m_api.m_device, bufferImpl->m_buffer.m_memory, 0, VK_WHOLE_SIZE, 0, outData)
     );
@@ -440,6 +452,7 @@ Result DeviceImpl::mapBuffer(IBuffer* buffer, CpuAccessMode mode, void** outData
 Result DeviceImpl::unmapBuffer(IBuffer* buffer)
 {
     BufferImpl* bufferImpl = checked_cast<BufferImpl*>(buffer);
+    SLANG_VK_TRACE_BEFORE("vkUnmapMemory(device=%p)", (void*)m_api.m_device);
     m_api.vkUnmapMemory(m_api.m_device, bufferImpl->m_buffer.m_memory);
     return SLANG_OK;
 }

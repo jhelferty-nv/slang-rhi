@@ -1,5 +1,6 @@
 #include "vk-sampler.h"
 #include "vk-device.h"
+#include "vk-trace.h"
 #include "vk-utils.h"
 
 namespace rhi::vk {
@@ -18,6 +19,7 @@ SamplerImpl::~SamplerImpl()
         device->m_bindlessDescriptorSet->freeHandle(m_descriptorHandle);
     }
 
+    SLANG_VK_TRACE_BEFORE("vkDestroySampler(device=%p, sampler=%p)", (void*)device->m_api.m_device, (void*)m_sampler);
     device->m_api.vkDestroySampler(device->m_api.m_device, m_sampler, nullptr);
 }
 
@@ -118,6 +120,7 @@ Result DeviceImpl::createSampler(const SamplerDesc& desc, ISampler** outSampler)
     samplerInfo.pNext = &reductionInfo;
 
     VkSampler sampler;
+    SLANG_VK_TRACE_BEFORE("vkCreateSampler(device=%p)", (void*)m_device);
     SLANG_VK_RETURN_ON_FAIL(m_api.vkCreateSampler(m_device, &samplerInfo, nullptr, &sampler));
 
     _labelObject((uint64_t)sampler, VK_OBJECT_TYPE_SAMPLER, desc.label);
