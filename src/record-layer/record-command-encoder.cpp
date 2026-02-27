@@ -64,6 +64,7 @@ IRenderPassEncoder* RecordCommandEncoder::beginRenderPass(const RenderPassDesc& 
 
     auto* inner = baseObject->beginRenderPass(innerDesc);
     m_renderPassEncoder.baseObject = inner;
+    m_renderPassEncoder.registerSelf();
     return &m_renderPassEncoder;
 }
 
@@ -72,6 +73,7 @@ IComputePassEncoder* RecordCommandEncoder::beginComputePass()
     RHI_RECORD_CALL("ICommandEncoder::beginComputePass");
     auto* inner = baseObject->beginComputePass();
     m_computePassEncoder.baseObject = inner;
+    m_computePassEncoder.registerSelf();
     return &m_computePassEncoder;
 }
 
@@ -80,6 +82,7 @@ IRayTracingPassEncoder* RecordCommandEncoder::beginRayTracingPass()
     RHI_RECORD_CALL("ICommandEncoder::beginRayTracingPass");
     auto* inner = baseObject->beginRayTracingPass();
     m_rayTracingPassEncoder.baseObject = inner;
+    m_rayTracingPassEncoder.registerSelf();
     return &m_rayTracingPassEncoder;
 }
 

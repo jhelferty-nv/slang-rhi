@@ -205,6 +205,14 @@ public:
         }
         return SLANG_E_NO_INTERFACE;
     }
+
+    void registerSelf()
+    {
+        if (slangRecord_isActive() && baseObject)
+            slangRecord_registerProxy(
+                static_cast<ISlangUnknown*>(static_cast<TInterface*>(this)),
+                static_cast<ISlangUnknown*>(baseObject));
+    }
 };
 
 // =============================================================================
