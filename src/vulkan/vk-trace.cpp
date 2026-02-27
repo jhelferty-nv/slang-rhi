@@ -9,12 +9,18 @@
 
 #if SLANG_WINDOWS_FAMILY
 #include <io.h>
+#include <process.h>
+#define SLANG_RHI_GETPID() ((unsigned long long)_getpid())
+#else
+#include <unistd.h>
+#define SLANG_RHI_GETPID() ((unsigned long long)getpid())
 #endif
 
 namespace rhi::vk {
 
 static FILE* s_logFile = nullptr;
 static char s_basePath[1024] = {};
+static unsigned long long s_pid = 0;
 static uint32_t s_spirvDumpCounter = 0;
 static bool s_enabled = false;
 static bool s_initAttempted = false;
@@ -43,8 +49,9 @@ void VulkanTrace::init()
     while (len > 0 && (s_basePath[len - 1] == '/' || s_basePath[len - 1] == '\\'))
         s_basePath[--len] = '\0';
 
+    s_pid = SLANG_RHI_GETPID();
     char logPath[1024];
-    snprintf(logPath, sizeof(logPath), "%s/slang_rhi_vk_trace.txt", s_basePath);
+    snprintf(logPath, sizeof(logPath), "%s/slang_rhi_vk_trace_%llu.txt", s_basePath, s_pid);
 
 #if defined(_MSC_VER)
     if (fopen_s(&s_logFile, logPath, "w") != 0)
@@ -58,6 +65,9 @@ void VulkanTrace::init()
     s_enabled = true;
     log("=== Slang-RHI Vulkan trace started ===\n");
     flush();
+    // Diagnostic: confirm which module opened the log (helps when only header appeared before)
+    fprintf(stderr, "[SLANG_RHI_VK_TRACE] Logging to %s/slang_rhi_vk_trace_%llu.txt\n", s_basePath, s_pid);
+    fflush(stderr);
 }
 
 void VulkanTrace::ensureInit()
@@ -100,7 +110,7 @@ void VulkanTrace::dumpSpirvAndLog(const void* code, size_t codeSize)
 
     uint32_t index = s_spirvDumpCounter++;
     char filename[256];
-    snprintf(filename, sizeof(filename), "spirv_dump_%u.spv", index);
+    snprintf(filename, sizeof(filename), "spirv_dump_%llu_%u.spv", s_pid, index);
 
     char fullPath[1024];
     snprintf(fullPath, sizeof(fullPath), "%s/%s", s_basePath, filename);
