@@ -1,4 +1,5 @@
 #include "vk-api.h"
+#include "vk-trace.h"
 
 #include "core/assert.h"
 #include "../rhi-shared.h"
