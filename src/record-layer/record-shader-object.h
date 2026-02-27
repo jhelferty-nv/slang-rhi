@@ -1,6 +1,7 @@
 #pragma once
 
 #include "record-base.h"
+#include "reference.h"
 
 #include <unordered_map>
 #include <vector>
@@ -32,12 +33,10 @@ public:
             uint32_t count = getEntryPointCount();
             for (uint32_t i = 0; i < count; i++)
             {
-                ComPtr<IShaderObject> innerEP;
-                SLANG_RETURN_ON_FAIL(baseObject->getEntryPoint(i, innerEP.writeRef()));
-                auto* wrapped = new RecordShaderObject();
-                wrapped->baseObject = innerEP;
+                RefPtr<RecordShaderObject> wrapped = new RecordShaderObject();
+                SLANG_RETURN_ON_FAIL(baseObject->getEntryPoint(i, wrapped->baseObject.writeRef()));
                 wrapped->registerSelf();
-                m_entryPoints.push_back(ComPtr<RecordShaderObject>(wrapped));
+                m_entryPoints.push_back(ComPtr<RecordShaderObject>(wrapped.get()));
             }
         }
         if (index >= m_entryPoints.size())
@@ -87,12 +86,11 @@ public:
             return SLANG_OK;
         }
 
-        auto* wrapped = new RecordShaderObject();
+        RefPtr<RecordShaderObject> wrapped = new RecordShaderObject();
         wrapped->baseObject = innerObj;
         wrapped->registerSelf();
-        m_childObjects[key] = ComPtr<RecordShaderObject>(wrapped);
-        *object = wrapped;
-        wrapped->addRef();
+        m_childObjects[key] = ComPtr<RecordShaderObject>(wrapped.get());
+        returnComPtr(object, wrapped);
         return SLANG_OK;
     }
 

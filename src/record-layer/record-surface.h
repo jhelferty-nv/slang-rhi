@@ -37,13 +37,12 @@ public:
     {
         RHI_RECORD_CALL("ISurface::acquireNextImage");
         RHI_PREPARE_OUTPUT(outTexture);
-        auto result = baseObject->acquireNextImage(outTexture);
-        if (SLANG_SUCCEEDED(result) && *outTexture)
+        RefPtr<RecordTexture> wrapped = new RecordTexture();
+        auto result = baseObject->acquireNextImage(wrapped->baseObject.writeRef());
+        if (wrapped->baseObject)
         {
-            auto* wrapped = new RecordTexture();
-            wrapped->baseObject = *outTexture;
             wrapped->registerSelf();
-            *outTexture = wrapped;
+            returnComPtr(outTexture, wrapped);
         }
         RHI_RECORD_OBJECT_OUTPUT(outTexture);
         RHI_RECORD_RETURN(result);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "record-base.h"
+#include "reference.h"
 
 namespace rhi::record {
 
@@ -107,13 +108,12 @@ public:
         RHI_RECORD_CALL("ITexture::createView");
         RHI_RECORD_INPUT_DESC(desc);
         RHI_PREPARE_OUTPUT(outTextureView);
-        auto result = baseObject->createView(desc, outTextureView);
-        if (SLANG_SUCCEEDED(result) && *outTextureView)
+        RefPtr<RecordTextureView> wrapped = new RecordTextureView();
+        auto result = baseObject->createView(desc, wrapped->baseObject.writeRef());
+        if (wrapped->baseObject)
         {
-            auto* wrapped = new RecordTextureView();
-            wrapped->baseObject = *outTextureView;
             wrapped->registerSelf();
-            *outTextureView = wrapped;
+            returnComPtr(outTextureView, wrapped);
         }
         RHI_RECORD_OBJECT_OUTPUT(outTextureView);
         RHI_RECORD_RETURN(result);
@@ -123,13 +123,12 @@ public:
     {
         RHI_RECORD_CALL("ITexture::getDefaultView");
         RHI_PREPARE_OUTPUT(outTextureView);
-        auto result = baseObject->getDefaultView(outTextureView);
-        if (SLANG_SUCCEEDED(result) && *outTextureView)
+        RefPtr<RecordTextureView> wrapped = new RecordTextureView();
+        auto result = baseObject->getDefaultView(wrapped->baseObject.writeRef());
+        if (wrapped->baseObject)
         {
-            auto* wrapped = new RecordTextureView();
-            wrapped->baseObject = *outTextureView;
             wrapped->registerSelf();
-            *outTextureView = wrapped;
+            returnComPtr(outTextureView, wrapped);
         }
         RHI_RECORD_OBJECT_OUTPUT(outTextureView);
         RHI_RECORD_RETURN(result);

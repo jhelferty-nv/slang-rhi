@@ -3,6 +3,7 @@
 #include "record-command-encoder.h"
 #include "record-fence.h"
 
+#include "reference.h"
 #include "core/short_vector.h"
 
 namespace rhi::record {
@@ -17,13 +18,12 @@ Result RecordCommandQueue::createCommandEncoder(ICommandEncoder** outEncoder)
     RHI_RECORD_CALL("ICommandQueue::createCommandEncoder");
     RHI_PREPARE_OUTPUT(outEncoder);
 
-    auto result = baseObject->createCommandEncoder(outEncoder);
-    if (SLANG_SUCCEEDED(result) && *outEncoder)
+    RefPtr<RecordCommandEncoder> wrapped = new RecordCommandEncoder();
+    auto result = baseObject->createCommandEncoder(wrapped->baseObject.writeRef());
+    if (wrapped->baseObject)
     {
-        auto* wrapped = new RecordCommandEncoder();
-        wrapped->baseObject = *outEncoder;
         wrapped->registerSelf();
-        *outEncoder = wrapped;
+        returnComPtr(outEncoder, wrapped);
     }
     RHI_RECORD_OBJECT_OUTPUT(outEncoder);
     RHI_RECORD_RETURN(result);

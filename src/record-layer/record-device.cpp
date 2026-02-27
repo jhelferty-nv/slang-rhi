@@ -9,20 +9,26 @@
 #include "record-shader-object.h"
 #include "record-surface.h"
 
+#include "reference.h"
 #include "resource-desc-utils.h"
 #include "core/short_vector.h"
 
 namespace rhi::record {
 
 template<typename RecordT, typename InterfaceT>
-static void wrapOutput(InterfaceT** outObj)
+static void wrapOutput(RefPtr<RecordT>& wrapped, InterfaceT** outObj)
 {
-    if (outObj && *outObj)
+    if (outObj)
     {
-        auto* wrapped = new RecordT();
-        wrapped->baseObject = *outObj;
-        wrapped->registerSelf();
-        *outObj = wrapped;
+        if (wrapped->baseObject)
+        {
+            wrapped->registerSelf();
+            returnComPtr(outObj, wrapped);
+        }
+        else
+        {
+            *outObj = nullptr;
+        }
     }
 }
 
@@ -135,8 +141,9 @@ Result RecordDevice::createBuffer(
     RHI_RECORD_INPUT_DESC(desc);
     RHI_RECORD_INPUT_BLOB(initData, desc.size);
 
-    auto result = baseObject->createBuffer(desc, initData, outBuffer);
-    wrapOutput<RecordBuffer>(outBuffer);
+    RefPtr<RecordBuffer> wrapped = new RecordBuffer();
+    auto result = baseObject->createBuffer(desc, initData, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outBuffer);
     RHI_RECORD_OBJECT_OUTPUT(outBuffer);
     RHI_RECORD_RETURN(result);
 }
@@ -150,8 +157,9 @@ Result RecordDevice::createBufferFromNativeHandle(
     RHI_RECORD_INPUT_POD(handle);
     RHI_RECORD_INPUT_DESC(desc);
 
-    auto result = baseObject->createBufferFromNativeHandle(handle, desc, outBuffer);
-    wrapOutput<RecordBuffer>(outBuffer);
+    RefPtr<RecordBuffer> wrapped = new RecordBuffer();
+    auto result = baseObject->createBufferFromNativeHandle(handle, desc, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outBuffer);
     RHI_RECORD_OBJECT_OUTPUT(outBuffer);
     RHI_RECORD_RETURN(result);
 }
@@ -165,8 +173,9 @@ Result RecordDevice::createBufferFromSharedHandle(
     RHI_RECORD_INPUT_POD(handle);
     RHI_RECORD_INPUT_DESC(desc);
 
-    auto result = baseObject->createBufferFromSharedHandle(handle, desc, outBuffer);
-    wrapOutput<RecordBuffer>(outBuffer);
+    RefPtr<RecordBuffer> wrapped = new RecordBuffer();
+    auto result = baseObject->createBufferFromSharedHandle(handle, desc, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outBuffer);
     RHI_RECORD_OBJECT_OUTPUT(outBuffer);
     RHI_RECORD_RETURN(result);
 }
@@ -204,8 +213,9 @@ Result RecordDevice::createTexture(
         RHI_RECORD_INPUT_UINT32(zero);
     }
 
-    auto result = baseObject->createTexture(desc, initData, outTexture);
-    wrapOutput<RecordTexture>(outTexture);
+    RefPtr<RecordTexture> wrapped = new RecordTexture();
+    auto result = baseObject->createTexture(desc, initData, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outTexture);
     RHI_RECORD_OBJECT_OUTPUT(outTexture);
     RHI_RECORD_RETURN(result);
 }
@@ -219,8 +229,9 @@ Result RecordDevice::createTextureFromNativeHandle(
     RHI_RECORD_INPUT_POD(handle);
     RHI_RECORD_INPUT_DESC(desc);
 
-    auto result = baseObject->createTextureFromNativeHandle(handle, desc, outTexture);
-    wrapOutput<RecordTexture>(outTexture);
+    RefPtr<RecordTexture> wrapped = new RecordTexture();
+    auto result = baseObject->createTextureFromNativeHandle(handle, desc, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outTexture);
     RHI_RECORD_OBJECT_OUTPUT(outTexture);
     RHI_RECORD_RETURN(result);
 }
@@ -236,8 +247,9 @@ Result RecordDevice::createTextureFromSharedHandle(
     RHI_RECORD_INPUT_DESC(desc);
     RHI_RECORD_INPUT_POD(size);
 
-    auto result = baseObject->createTextureFromSharedHandle(handle, desc, size, outTexture);
-    wrapOutput<RecordTexture>(outTexture);
+    RefPtr<RecordTexture> wrapped = new RecordTexture();
+    auto result = baseObject->createTextureFromSharedHandle(handle, desc, size, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outTexture);
     RHI_RECORD_OBJECT_OUTPUT(outTexture);
     RHI_RECORD_RETURN(result);
 }
@@ -280,8 +292,9 @@ Result RecordDevice::createSampler(const SamplerDesc& desc, ISampler** outSample
     RHI_RECORD_CALL("IDevice::createSampler");
     RHI_RECORD_INPUT_DESC(desc);
 
-    auto result = baseObject->createSampler(desc, outSampler);
-    wrapOutput<RecordSampler>(outSampler);
+    RefPtr<RecordSampler> wrapped = new RecordSampler();
+    auto result = baseObject->createSampler(desc, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outSampler);
     RHI_RECORD_OBJECT_OUTPUT(outSampler);
     RHI_RECORD_RETURN(result);
 }
@@ -295,8 +308,9 @@ Result RecordDevice::createTextureView(
     RHI_RECORD_OBJECT_INPUT(texture);
     RHI_RECORD_INPUT_DESC(desc);
 
-    auto result = baseObject->createTextureView(getInnerObj(texture), desc, outView);
-    wrapOutput<RecordTextureView>(outView);
+    RefPtr<RecordTextureView> wrapped = new RecordTextureView();
+    auto result = baseObject->createTextureView(getInnerObj(texture), desc, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outView);
     RHI_RECORD_OBJECT_OUTPUT(outView);
     RHI_RECORD_RETURN(result);
 }
@@ -326,8 +340,9 @@ Result RecordDevice::createAccelerationStructure(
     RHI_RECORD_CALL("IDevice::createAccelerationStructure");
     RHI_RECORD_INPUT_DESC(desc);
 
-    auto result = baseObject->createAccelerationStructure(desc, outAccelerationStructure);
-    wrapOutput<RecordAccelerationStructure>(outAccelerationStructure);
+    RefPtr<RecordAccelerationStructure> wrapped = new RecordAccelerationStructure();
+    auto result = baseObject->createAccelerationStructure(desc, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outAccelerationStructure);
     RHI_RECORD_OBJECT_OUTPUT(outAccelerationStructure);
     RHI_RECORD_RETURN(result);
 }
@@ -340,8 +355,9 @@ Result RecordDevice::createSurface(WindowHandle windowHandle, ISurface** outSurf
 {
     RHI_RECORD_CALL("IDevice::createSurface");
 
-    auto result = baseObject->createSurface(windowHandle, outSurface);
-    wrapOutput<RecordSurface>(outSurface);
+    RefPtr<RecordSurface> wrapped = new RecordSurface();
+    auto result = baseObject->createSurface(windowHandle, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outSurface);
     RHI_RECORD_OBJECT_OUTPUT(outSurface);
     RHI_RECORD_RETURN(result);
 }
@@ -360,8 +376,9 @@ Result RecordDevice::createInputLayout(const InputLayoutDesc& desc, IInputLayout
     }
     RHI_RECORD_INPUT_POD_ARRAY(desc.vertexStreams, desc.vertexStreamCount);
 
-    auto result = baseObject->createInputLayout(desc, outLayout);
-    wrapOutput<RecordInputLayout>(outLayout);
+    RefPtr<RecordInputLayout> wrapped = new RecordInputLayout();
+    auto result = baseObject->createInputLayout(desc, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outLayout);
     RHI_RECORD_OBJECT_OUTPUT(outLayout);
     RHI_RECORD_RETURN(result);
 }
@@ -380,8 +397,9 @@ Result RecordDevice::getQueue(QueueType type, ICommandQueue** outQueue)
         return SLANG_OK;
     }
 
-    auto result = baseObject->getQueue(type, outQueue);
-    wrapOutput<RecordCommandQueue>(outQueue);
+    RefPtr<RecordCommandQueue> wrapped = new RecordCommandQueue();
+    auto result = baseObject->getQueue(type, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outQueue);
     if (SLANG_SUCCEEDED(result) && *outQueue)
         m_queueCache[type] = checked_cast<RecordCommandQueue*>(*outQueue);
     RHI_RECORD_OBJECT_OUTPUT(outQueue);
@@ -400,8 +418,9 @@ Result RecordDevice::createShaderObject(
 {
     RHI_RECORD_CALL("IDevice::createShaderObject");
 
-    auto result = baseObject->createShaderObject(session, type, container, outObject);
-    wrapOutput<RecordShaderObject>(outObject);
+    RefPtr<RecordShaderObject> wrapped = new RecordShaderObject();
+    auto result = baseObject->createShaderObject(session, type, container, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outObject);
     RHI_RECORD_OBJECT_OUTPUT(outObject);
     RHI_RECORD_RETURN(result);
 }
@@ -412,8 +431,9 @@ Result RecordDevice::createShaderObjectFromTypeLayout(
 {
     RHI_RECORD_CALL("IDevice::createShaderObjectFromTypeLayout");
 
-    auto result = baseObject->createShaderObjectFromTypeLayout(typeLayout, outObject);
-    wrapOutput<RecordShaderObject>(outObject);
+    RefPtr<RecordShaderObject> wrapped = new RecordShaderObject();
+    auto result = baseObject->createShaderObjectFromTypeLayout(typeLayout, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outObject);
     RHI_RECORD_OBJECT_OUTPUT(outObject);
     RHI_RECORD_RETURN(result);
 }
@@ -425,8 +445,9 @@ Result RecordDevice::createRootShaderObject(
     RHI_RECORD_CALL("IDevice::createRootShaderObject");
     RHI_RECORD_OBJECT_INPUT(program);
 
-    auto result = baseObject->createRootShaderObject(getInnerObj(program), outObject);
-    wrapOutput<RecordShaderObject>(outObject);
+    RefPtr<RecordShaderObject> wrapped = new RecordShaderObject();
+    auto result = baseObject->createRootShaderObject(getInnerObj(program), wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outObject);
     RHI_RECORD_OBJECT_OUTPUT(outObject);
     RHI_RECORD_RETURN(result);
 }
@@ -447,8 +468,9 @@ Result RecordDevice::createShaderProgram(
     for (uint32_t i = 0; i < desc.slangEntryPointCount; i++)
         RHI_RECORD_OBJECT_INPUT(desc.slangEntryPoints[i]);
 
-    auto result = baseObject->createShaderProgram(desc, outProgram, outDiagnostics);
-    wrapOutput<RecordShaderProgram>(outProgram);
+    RefPtr<RecordShaderProgram> wrapped = new RecordShaderProgram();
+    auto result = baseObject->createShaderProgram(desc, wrapped->baseObject.writeRef(), outDiagnostics);
+    wrapOutput(wrapped, outProgram);
     RHI_RECORD_OBJECT_OUTPUT(outProgram);
     RHI_RECORD_RETURN(result);
 }
@@ -468,8 +490,9 @@ Result RecordDevice::createRenderPipeline(
     RenderPipelineDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
     innerDesc.inputLayout = getInnerObj(desc.inputLayout);
-    auto result = baseObject->createRenderPipeline(innerDesc, outPipeline);
-    wrapOutput<RecordRenderPipeline>(outPipeline);
+    RefPtr<RecordRenderPipeline> wrapped = new RecordRenderPipeline();
+    auto result = baseObject->createRenderPipeline(innerDesc, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outPipeline);
     RHI_RECORD_OBJECT_OUTPUT(outPipeline);
     RHI_RECORD_RETURN(result);
 }
@@ -483,8 +506,9 @@ Result RecordDevice::createComputePipeline(
 
     ComputePipelineDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
-    auto result = baseObject->createComputePipeline(innerDesc, outPipeline);
-    wrapOutput<RecordComputePipeline>(outPipeline);
+    RefPtr<RecordComputePipeline> wrapped = new RecordComputePipeline();
+    auto result = baseObject->createComputePipeline(innerDesc, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outPipeline);
     RHI_RECORD_OBJECT_OUTPUT(outPipeline);
     RHI_RECORD_RETURN(result);
 }
@@ -509,8 +533,9 @@ Result RecordDevice::createRayTracingPipeline(
 
     RayTracingPipelineDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
-    auto result = baseObject->createRayTracingPipeline(innerDesc, outPipeline);
-    wrapOutput<RecordRayTracingPipeline>(outPipeline);
+    RefPtr<RecordRayTracingPipeline> wrapped = new RecordRayTracingPipeline();
+    auto result = baseObject->createRayTracingPipeline(innerDesc, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outPipeline);
     RHI_RECORD_OBJECT_OUTPUT(outPipeline);
     RHI_RECORD_RETURN(result);
 }
@@ -587,8 +612,9 @@ Result RecordDevice::createQueryPool(const QueryPoolDesc& desc, IQueryPool** out
     RHI_RECORD_CALL("IDevice::createQueryPool");
     RHI_RECORD_INPUT_DESC(desc);
 
-    auto result = baseObject->createQueryPool(desc, outPool);
-    wrapOutput<RecordQueryPool>(outPool);
+    RefPtr<RecordQueryPool> wrapped = new RecordQueryPool();
+    auto result = baseObject->createQueryPool(desc, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outPool);
     RHI_RECORD_OBJECT_OUTPUT(outPool);
     RHI_RECORD_RETURN(result);
 }
@@ -598,8 +624,9 @@ Result RecordDevice::createFence(const FenceDesc& desc, IFence** outFence)
     RHI_RECORD_CALL("IDevice::createFence");
     RHI_RECORD_INPUT_DESC(desc);
 
-    auto result = baseObject->createFence(desc, outFence);
-    wrapOutput<RecordFence>(outFence);
+    RefPtr<RecordFence> wrapped = new RecordFence();
+    auto result = baseObject->createFence(desc, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outFence);
     RHI_RECORD_OBJECT_OUTPUT(outFence);
     RHI_RECORD_RETURN(result);
 }
@@ -635,8 +662,9 @@ Result RecordDevice::createHeap(const HeapDesc& desc, IHeap** outHeap)
     RHI_RECORD_CALL("IDevice::createHeap");
     RHI_RECORD_INPUT_POD(desc);
 
-    auto result = baseObject->createHeap(desc, outHeap);
-    wrapOutput<RecordHeap>(outHeap);
+    RefPtr<RecordHeap> wrapped = new RecordHeap();
+    auto result = baseObject->createHeap(desc, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outHeap);
     RHI_RECORD_OBJECT_OUTPUT(outHeap);
     RHI_RECORD_RETURN(result);
 }
@@ -696,8 +724,9 @@ Result RecordDevice::createShaderTable(const ShaderTableDesc& desc, IShaderTable
 
     ShaderTableDesc innerDesc = desc;
     innerDesc.program = getInnerObj(desc.program);
-    auto result = baseObject->createShaderTable(innerDesc, outTable);
-    wrapOutput<RecordShaderTable>(outTable);
+    RefPtr<RecordShaderTable> wrapped = new RecordShaderTable();
+    auto result = baseObject->createShaderTable(innerDesc, wrapped->baseObject.writeRef());
+    wrapOutput(wrapped, outTable);
     RHI_RECORD_OBJECT_OUTPUT(outTable);
     RHI_RECORD_RETURN(result);
 }

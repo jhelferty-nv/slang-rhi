@@ -6,6 +6,7 @@
 #include "record-fence.h"
 #include "record-shader-object.h"
 
+#include "reference.h"
 #include "core/short_vector.h"
 
 namespace rhi::record {
@@ -396,13 +397,12 @@ Result RecordCommandEncoder::finish(ICommandBuffer** outCommandBuffer)
 {
     RHI_RECORD_CALL("ICommandEncoder::finish");
     RHI_PREPARE_OUTPUT(outCommandBuffer);
-    auto result = baseObject->finish(outCommandBuffer);
-    if (SLANG_SUCCEEDED(result) && *outCommandBuffer)
+    RefPtr<RecordCommandBuffer> wrapped = new RecordCommandBuffer();
+    auto result = baseObject->finish(wrapped->baseObject.writeRef());
+    if (wrapped->baseObject)
     {
-        auto* wrapped = new RecordCommandBuffer();
-        wrapped->baseObject = *outCommandBuffer;
         wrapped->registerSelf();
-        *outCommandBuffer = wrapped;
+        returnComPtr(outCommandBuffer, wrapped);
     }
     RHI_RECORD_OBJECT_OUTPUT(outCommandBuffer);
     RHI_RECORD_RETURN(result);
