@@ -7,7 +7,7 @@
 
 #include <stdlib.h>
 
-#if SLANG_WINDOWS_FAMILY
+#if defined(_WIN32)
 #include <io.h>
 #include <process.h>
 #define SLANG_RHI_GETPID() ((unsigned long long)_getpid())
