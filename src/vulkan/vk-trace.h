@@ -13,6 +13,9 @@ struct VulkanTrace
     /// Initialize trace from SLANG_RHI_VK_TRACE env var. Call once at device init.
     static void init();
 
+    /// Ensure init has been attempted (for lazy init when first Vulkan call runs in this module).
+    static void ensureInit();
+
     /// Returns true if tracing is enabled (env was set and init succeeded).
     static bool isEnabled();
 
@@ -28,9 +31,11 @@ struct VulkanTrace
 };
 
 /// Call before every Vulkan API invocation: flushes and logs the message, then proceed with the call.
+/// Uses lazy init so the module that actually makes Vulkan calls opens the log (fixes multi-DLL case).
 #define SLANG_VK_TRACE_BEFORE(fmt, ...)                                                                                 \
     do                                                                                                                 \
     {                                                                                                                  \
+        rhi::vk::VulkanTrace::ensureInit();                                                                            \
         if (rhi::vk::VulkanTrace::isEnabled())                                                                          \
         {                                                                                                              \
             rhi::vk::VulkanTrace::flush();                                                                             \

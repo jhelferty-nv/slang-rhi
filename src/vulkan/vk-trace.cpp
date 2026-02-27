@@ -17,6 +17,7 @@ static FILE* s_logFile = nullptr;
 static char s_basePath[1024] = {};
 static uint32_t s_spirvDumpCounter = 0;
 static bool s_enabled = false;
+static bool s_initAttempted = false;
 
 void VulkanTrace::init()
 {
@@ -59,6 +60,15 @@ void VulkanTrace::init()
     flush();
 }
 
+void VulkanTrace::ensureInit()
+{
+    if (!s_initAttempted)
+    {
+        s_initAttempted = true;
+        init();
+    }
+}
+
 bool VulkanTrace::isEnabled() { return s_enabled && s_logFile != nullptr; }
 
 void VulkanTrace::flush()
@@ -84,6 +94,7 @@ void VulkanTrace::log(const char* fmt, ...)
 
 void VulkanTrace::dumpSpirvAndLog(const void* code, size_t codeSize)
 {
+    ensureInit();
     if (!s_enabled || !s_logFile || !code || codeSize == 0)
         return;
 
