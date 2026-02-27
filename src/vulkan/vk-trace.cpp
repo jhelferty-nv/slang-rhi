@@ -20,7 +20,16 @@ static bool s_enabled = false;
 
 void VulkanTrace::init()
 {
-    const char* dir = getenv("SLANG_RHI_VK_TRACE");
+    const char* dir = nullptr;
+#if defined(_MSC_VER)
+    char envBuf[1024];
+    size_t envLen = 0;
+    if (getenv_s(&envLen, envBuf, sizeof(envBuf), "SLANG_RHI_VK_TRACE") != 0 || envLen == 0)
+        return;
+    dir = envBuf;
+#else
+    dir = getenv("SLANG_RHI_VK_TRACE");
+#endif
     if (!dir || dir[0] == '\0')
         return;
 
@@ -36,7 +45,12 @@ void VulkanTrace::init()
     char logPath[1024];
     snprintf(logPath, sizeof(logPath), "%s/slang_rhi_vk_trace.txt", s_basePath);
 
+#if defined(_MSC_VER)
+    if (fopen_s(&s_logFile, logPath, "w") != 0)
+        s_logFile = nullptr;
+#else
     s_logFile = fopen(logPath, "w");
+#endif
     if (!s_logFile)
         return;
 
@@ -80,7 +94,13 @@ void VulkanTrace::dumpSpirvAndLog(const void* code, size_t codeSize)
     char fullPath[1024];
     snprintf(fullPath, sizeof(fullPath), "%s/%s", s_basePath, filename);
 
-    FILE* bin = fopen(fullPath, "wb");
+    FILE* bin = nullptr;
+#if defined(_MSC_VER)
+    if (fopen_s(&bin, fullPath, "wb") != 0)
+        bin = nullptr;
+#else
+    bin = fopen(fullPath, "wb");
+#endif
     if (bin)
     {
         size_t written = fwrite(code, 1, codeSize, bin);
