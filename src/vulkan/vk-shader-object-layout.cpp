@@ -1,6 +1,7 @@
 #include "vk-shader-object-layout.h"
 #include "vk-device.h"
 #include "vk-bindless-descriptor-set.h"
+#include "vk-trace.h"
 #include "vk-utils.h"
 
 namespace rhi::vk {
@@ -594,17 +595,39 @@ Result ShaderObjectLayoutImpl::_init(const Builder* builder)
     m_containerType = builder->m_containerType;
 
     // Create VkDescriptorSetLayout for all descriptor sets.
-    for (auto& descriptorSetInfo : m_descriptorSetInfos)
+    for (size_t setIndex = 0; setIndex < m_descriptorSetInfos.size(); ++setIndex)
     {
+        auto& descriptorSetInfo = m_descriptorSetInfos[setIndex];
         VkDescriptorSetLayoutCreateInfo createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
         createInfo.pBindings = descriptorSetInfo.vkBindings.data();
         createInfo.bindingCount = (uint32_t)descriptorSetInfo.vkBindings.size();
+
+        if (VulkanTrace::isEnabled())
+        {
+            VulkanTrace::ensureInit();
+            VulkanTrace::log("VkDescriptorSetLayoutCreateInfo setIndex=%zu: sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO flags=0 bindingCount=%u\n",
+                setIndex, createInfo.bindingCount);
+            for (uint32_t i = 0; i < createInfo.bindingCount; ++i)
+            {
+                const VkDescriptorSetLayoutBinding* b = &createInfo.pBindings[i];
+                VulkanTrace::log("  binding[%u]: binding=%u descriptorType=%u descriptorCount=%u stageFlags=0x%x pImmutableSamplers=%p\n",
+                    i, b->binding, (unsigned)b->descriptorType, b->descriptorCount, (unsigned)b->stageFlags, (void*)b->pImmutableSamplers);
+            }
+            VulkanTrace::flush();
+        }
+        SLANG_VK_TRACE_BEFORE("vkCreateDescriptorSetLayout(device=%p) setIndex=%zu bindingCount=%u",
+            (void*)device->m_api.m_device, setIndex, createInfo.bindingCount);
         VkDescriptorSetLayout vkDescSetLayout;
         SLANG_RETURN_ON_FAIL(
             device->m_api.vkCreateDescriptorSetLayout(device->m_api.m_device, &createInfo, nullptr, &vkDescSetLayout)
         );
         descriptorSetInfo.descriptorSetLayout = vkDescSetLayout;
+        if (VulkanTrace::isEnabled())
+        {
+            VulkanTrace::log("  -> layout=%p\n", (void*)vkDescSetLayout);
+            VulkanTrace::flush();
+        }
     }
     return SLANG_OK;
 }
@@ -765,10 +788,38 @@ Result RootShaderObjectLayoutImpl::_init(const Builder* builder)
         pipelineLayoutCreateInfo.pushConstantRangeCount = (uint32_t)m_allPushConstantRanges.size();
         pipelineLayoutCreateInfo.pPushConstantRanges = m_allPushConstantRanges.data();
     }
+
+    if (VulkanTrace::isEnabled())
+    {
+        VulkanTrace::ensureInit();
+        VulkanTrace::log("VkPipelineLayoutCreateInfo: sType=VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO flags=0 setLayoutCount=%u pushConstantRangeCount=%u\n",
+            pipelineLayoutCreateInfo.setLayoutCount, pipelineLayoutCreateInfo.pushConstantRangeCount);
+        for (uint32_t i = 0; i < pipelineLayoutCreateInfo.setLayoutCount; ++i)
+        {
+            VulkanTrace::log("  pSetLayouts[%u]=%p\n", i, (void*)pipelineLayoutCreateInfo.pSetLayouts[i]);
+        }
+        if (pipelineLayoutCreateInfo.pPushConstantRanges)
+        {
+            for (uint32_t i = 0; i < pipelineLayoutCreateInfo.pushConstantRangeCount; ++i)
+            {
+                const VkPushConstantRange* r = &pipelineLayoutCreateInfo.pPushConstantRanges[i];
+                VulkanTrace::log("  pushConstantRange[%u]: stageFlags=0x%x offset=%u size=%u\n",
+                    i, (unsigned)r->stageFlags, r->offset, r->size);
+            }
+        }
+        VulkanTrace::flush();
+    }
+    SLANG_VK_TRACE_BEFORE("vkCreatePipelineLayout(device=%p) setLayoutCount=%u pushConstantRangeCount=%u",
+        (void*)m_device->m_api.m_device, pipelineLayoutCreateInfo.setLayoutCount, pipelineLayoutCreateInfo.pushConstantRangeCount);
     SLANG_RETURN_ON_FAIL(
         m_device->m_api
             .vkCreatePipelineLayout(m_device->m_api.m_device, &pipelineLayoutCreateInfo, nullptr, &m_pipelineLayout)
     );
+    if (VulkanTrace::isEnabled())
+    {
+        VulkanTrace::log("  -> pipelineLayout=%p\n", (void*)m_pipelineLayout);
+        VulkanTrace::flush();
+    }
     return SLANG_OK;
 }
 
