@@ -10,10 +10,30 @@
 #if defined(_WIN32)
 #include <io.h>
 #include <process.h>
+#include <windows.h>
 #define SLANG_RHI_GETPID() ((unsigned long long)_getpid())
+#define SLANG_RHI_GETTID() ((unsigned long long)GetCurrentThreadId())
+#elif defined(__linux__)
+#include <unistd.h>
+#include <sys/syscall.h>
+#define SLANG_RHI_GETPID() ((unsigned long long)getpid())
+#define SLANG_RHI_GETTID() ((unsigned long long)syscall(SYS_gettid))
+#elif defined(__APPLE__)
+#include <unistd.h>
+#include <pthread.h>
+#define SLANG_RHI_GETPID() ((unsigned long long)getpid())
+static unsigned long long getTidApple()
+{
+    uint64_t tid;
+    pthread_threadid_np(pthread_self(), &tid);
+    return tid;
+}
+#define SLANG_RHI_GETTID() getTidApple()
 #else
 #include <unistd.h>
+#include <pthread.h>
 #define SLANG_RHI_GETPID() ((unsigned long long)getpid())
+#define SLANG_RHI_GETTID() ((unsigned long long)(uintptr_t)pthread_self())
 #endif
 
 namespace rhi::vk {
@@ -80,6 +100,15 @@ void VulkanTrace::ensureInit()
 }
 
 bool VulkanTrace::isEnabled() { return s_enabled && s_logFile != nullptr; }
+
+unsigned long long VulkanTrace::getThreadId()
+{
+#if defined(__APPLE__)
+    return getTidApple();
+#else
+    return SLANG_RHI_GETTID();
+#endif
+}
 
 void VulkanTrace::flush()
 {

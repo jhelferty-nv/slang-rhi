@@ -25,6 +25,9 @@ struct VulkanTrace
     /// Log a line to the text file (printf-style). Does not flush; call flush() before the next Vulkan call.
     static void log(const char* fmt, ...);
 
+    /// Current thread id (platform-specific, stable for thread lifetime). For trace diagnostics.
+    static unsigned long long getThreadId();
+
     /// Write SPIR-V binary to spirv_dump_<N>.spv, log the filename to the text log, then flush both.
     /// Returns the filename written (or empty if not enabled / error). Call before vkCreateShaderModule.
     static void dumpSpirvAndLog(const void* code, size_t codeSize);
@@ -39,7 +42,7 @@ struct VulkanTrace
         if (rhi::vk::VulkanTrace::isEnabled())                                                                          \
         {                                                                                                              \
             rhi::vk::VulkanTrace::flush();                                                                             \
-            rhi::vk::VulkanTrace::log(fmt "\n", ##__VA_ARGS__);                                                        \
+            rhi::vk::VulkanTrace::log("[tid=%llu] " fmt "\n", rhi::vk::VulkanTrace::getThreadId(), ##__VA_ARGS__);     \
         }                                                                                                              \
     } while (0)
 
