@@ -4,6 +4,7 @@
 #include "vk-texture.h"
 #include "vk-sampler.h"
 #include "vk-acceleration-structure.h"
+#include "vk-trace.h"
 #include "vk-utils.h"
 
 #include "core/static_vector.h"
@@ -128,9 +129,30 @@ Result BindlessDescriptorSet::initialize()
         createInfo.bindingCount = 3;
         createInfo.pBindings = bindings;
 
+        if (VulkanTrace::isEnabled())
+        {
+            VulkanTrace::ensureInit();
+            VulkanTrace::log("VkDescriptorSetLayoutCreateInfo (bindless): sType=VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO flags=VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT bindingCount=3 pNext=VkMutableDescriptorTypeCreateInfoEXT->VkDescriptorSetLayoutBindingFlagsCreateInfo\n");
+            VulkanTrace::log("  BindlessDesc: bufferCount=%u textureCount=%u samplerCount=%u combinedTextureSamplerCount=%u accelerationStructureCount=%u\n",
+                m_desc.bufferCount, m_desc.textureCount, m_desc.samplerCount, m_desc.combinedTextureSamplerCount, m_desc.accelerationStructureCount);
+            VulkanTrace::log("  binding[0]: binding=0 descriptorType=VK_DESCRIPTOR_TYPE_SAMPLER descriptorCount=%u stageFlags=VK_SHADER_STAGE_ALL bindingFlags=PARTIALLY_BOUND|UPDATE_AFTER_BIND\n", bindings[0].descriptorCount);
+            VulkanTrace::log("  binding[1]: binding=1 descriptorType=VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER descriptorCount=%u stageFlags=VK_SHADER_STAGE_ALL bindingFlags=PARTIALLY_BOUND|UPDATE_AFTER_BIND\n", bindings[1].descriptorCount);
+            VulkanTrace::log("  binding[2]: binding=2 descriptorType=VK_DESCRIPTOR_TYPE_MUTABLE_EXT descriptorCount=%u stageFlags=VK_SHADER_STAGE_ALL bindingFlags=PARTIALLY_BOUND|UPDATE_AFTER_BIND\n",
+                bindings[2].descriptorCount);
+            for (size_t i = 0; i < mutableDescriptorTypes.size(); i++)
+                VulkanTrace::log("    mutableType[%zu]=%u\n", i, (unsigned)mutableDescriptorTypes[i]);
+            VulkanTrace::flush();
+        }
+        SLANG_VK_TRACE_BEFORE("vkCreateDescriptorSetLayout(device=%p) bindless bindingCount=3",
+            (void*)api.m_device);
         SLANG_VK_RETURN_ON_FAIL(
             api.vkCreateDescriptorSetLayout(api.m_device, &createInfo, nullptr, &m_descriptorSetLayout)
         );
+        if (VulkanTrace::isEnabled())
+        {
+            VulkanTrace::log("  -> layout=%p\n", (void*)m_descriptorSetLayout);
+            VulkanTrace::flush();
+        }
     }
 
     // Create descriptor set
