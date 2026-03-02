@@ -33,7 +33,7 @@ struct VulkanTrace
     static void dumpSpirvAndLog(const void* code, size_t codeSize);
 };
 
-/// Call before every Vulkan API invocation: flushes and logs the message, then proceed with the call.
+/// Call before every Vulkan API invocation: flushes previous log, logs this call, flushes again, then proceed with the call.
 /// Uses lazy init so the module that actually makes Vulkan calls opens the log (fixes multi-DLL case).
 #define SLANG_VK_TRACE_BEFORE(fmt, ...)                                                                                 \
     do                                                                                                                 \
@@ -43,6 +43,7 @@ struct VulkanTrace
         {                                                                                                              \
             rhi::vk::VulkanTrace::flush();                                                                             \
             rhi::vk::VulkanTrace::log("[tid=%llu] " fmt "\n", rhi::vk::VulkanTrace::getThreadId(), ##__VA_ARGS__);     \
+            rhi::vk::VulkanTrace::flush();                                                                             \
         }                                                                                                              \
     } while (0)
 

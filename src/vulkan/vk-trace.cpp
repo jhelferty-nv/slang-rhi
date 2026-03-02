@@ -10,6 +10,7 @@
 #if defined(_WIN32)
 #include <io.h>
 #include <process.h>
+#include <share.h>
 #include <windows.h>
 #define SLANG_RHI_GETPID() ((unsigned long long)_getpid())
 #define SLANG_RHI_GETTID() ((unsigned long long)GetCurrentThreadId())
@@ -73,9 +74,9 @@ void VulkanTrace::init()
     char logPath[1024];
     snprintf(logPath, sizeof(logPath), "%s/slang_rhi_vk_trace_%llu.txt", s_basePath, s_pid);
 
-#if defined(_MSC_VER)
-    if (fopen_s(&s_logFile, logPath, "w") != 0)
-        s_logFile = nullptr;
+#if defined(_WIN32)
+    // _SH_DENYWR: allow other processes to open for read (e.g. tail) while we write
+    s_logFile = _fsopen(logPath, "w", _SH_DENYWR);
 #else
     s_logFile = fopen(logPath, "w");
 #endif

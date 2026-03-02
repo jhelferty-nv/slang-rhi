@@ -2046,6 +2046,7 @@ Result CommandQueueImpl::submit(const SubmitDesc& desc)
         timelineSubmitInfo.pSignalSemaphoreValues = signalValues.data();
     }
 
+    SLANG_VK_TRACE_BEFORE("vkQueueSubmit(queue=%p)", (void*)m_queue);
     SLANG_VK_RETURN_ON_FAIL(m_api.vkQueueSubmit(m_queue, 1, &submitInfo, m_surfaceSync.fence));
     m_surfaceSync.fence = VK_NULL_HANDLE;
 
